@@ -2,10 +2,10 @@ import { STATUS, type Status } from "../../lib/model";
 import { useChartTooltip } from "./Tooltip";
 import { useWidth } from "../../hooks/useWidth";
 
-const H = 28;
+const H = 24;
 const GAP = 2;
 
-/** 100 % stacked bar of outcomes with a 2px surface gap between segments. */
+/** 100 % stacked bar of outcomes in a bordered track, with a 2px gap between segments. */
 export function OutcomeBar({
   counts,
   order,
@@ -19,7 +19,7 @@ export function OutcomeBar({
   const [boxRef, width] = useWidth<HTMLDivElement>();
   const segs = order.filter((k) => counts[k] > 0);
   return (
-    <div data-chart ref={tip.containerRef}>
+    <div data-chart ref={tip.containerRef} className="outcome">
       <div ref={boxRef} style={{ minHeight: H }}>
         {width > 0 &&
           (() => {
@@ -42,7 +42,6 @@ export function OutcomeBar({
                       y={0}
                       width={w}
                       height={H}
-                      rx={4}
                       style={{ fill: STATUS[k].color }}
                       onMouseMove={(e) =>
                         tip.show(

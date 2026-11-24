@@ -1,6 +1,6 @@
 # Työnhaku-dashboard
 
-Oma työnhaun seurantatyökalu, jossa hakemukset, odottavat haut ja viikkotavoite näkyvät yhdessä näkymässä. Mukana on kevyt pelillistäminen: taso, avatar, viikkoputki ja saavutukset.
+Oma työnhaun seurantatyökalu, jossa hakemukset, odottavat haut ja viikkotavoite näkyvät yhdessä näkymässä. Ulkoasu on tumma JRPG-valikko: hakijalla on pikselihahmo, taso ja esineinä kerättävät saavutukset.
 
 ![Työnhaku-dashboard](docs/dashboard.png)
 
@@ -8,11 +8,13 @@ Kuvakaappauksen hakemukset ovat keksittyä esimerkkidataa. Omat hakemukseni eiv�
 
 ## Mitä se tekee
 
-- **Tänään-näkymä** nostaa esiin hakemukset, joista ei ole kuulunut yli kolmeen viikkoon, ja antaa niille pikatoiminnot (merkitse ei valituksi, muistuta myöhemmin, muokkaa).
-- **Viikkotavoite** ja viikoittainen kaavio näyttävät, kuinka monta hakemusta on lähtenyt ja kuinka paljon tavoitteesta puuttuu.
-- **Tilastot** vastaushetkistä, lopputuloksista ja hakijamääristä visx-kaavioina.
-- **Pelillistäminen:** XP, tasot, viikkoputki ja 14 saavutusta. Pisteet palkitsevat tekemistä, eivät lopputulosta, joten myös käsitelty hylkäys tuottaa XP:tä.
-- **CSV-lataus** varmuuskopioksi.
+- **Tänään-näkymä:** hahmo, jonka varusteet kasvavat tason mukana, sekä XP-, viikkotavoite- ja putkimittarit. Tehtävät-listassa ovat hakemukset, joista ei ole kuulunut yli kolmeen viikkoon. Niille on pikatoiminnot: kuittaa ei valituksi, muistuta myöhemmin tai muokkaa.
+- **Esineet:** 14 saavutusta. Valitusta näkee, miten sen saa ja miltä viikolta se on ansaittu.
+- **Tilastot:** lopputulokset, suppilo hausta tarjoukseen, tehtävätyypit, työnantajat ja hakijamäärät.
+- **Hakuloki:** kaikki hakemukset tilan mukaan suodatettavina, ja jokaisen hakemuksen XP.
+- **Lisää hakemus:** Claude voi täyttää kentät liitetystä työpaikkailmoituksesta. PALKKIO-paneeli näyttää, paljonko XP:tä tallennus tuo ja miten viikkotavoite etenee.
+- **Pelisäännöt** palkitsevat tekemistä, eivät lopputulosta, joten myös käsitelty hylkäys tuottaa XP:tä.
+- Tumma ja vaalea teema, mobiilissa alapalkkivalikko, ja **CSV-lataus** varmuuskopioksi.
 
 ## Tekniikka
 

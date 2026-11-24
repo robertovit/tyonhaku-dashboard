@@ -1,4 +1,5 @@
 // Game layer: XP, levels, streaks and badges are all derived from the applications; nothing extra is stored.
+import { isoWeek } from "./dates";
 import { weeklySeries } from "./stats";
 import type { Application } from "./model";
 
@@ -200,6 +201,44 @@ export function gameState(apps: Application[], goal: number, today: string): Gam
     base.offers * r.offer +
     base.weeks.met * r.fullWeek;
   return { ...base, xp, level: levelFor(xp), badges: BADGES.filter((b) => b.earned(base)).map((b) => b.id) };
+}
+
+export interface XpPart {
+  label: string;
+  xp: number;
+}
+/** What one application is worth on its own (weekly bonuses come on top). Matches the sums in gameState(). */
+export function xpParts(a: Pick<Application, "cv" | "att" | "status">): XpPart[] {
+  const r = XP_RULES;
+  const parts: XpPart[] = [{ label: "Hakemus", xp: r.application }];
+  if (a.cv.trim()) parts.push({ label: "Räätälöity CV", xp: r.tailoredCv });
+  if (/saatekirje/i.test(a.att)) parts.push({ label: "Saatekirje", xp: r.coverLetter });
+  if (a.status === "no") parts.push({ label: "Ei-valinta käsitelty", xp: r.rejectionHandled });
+  if (a.status === "int" || a.status === "offer") parts.push({ label: "Haastattelu", xp: r.interview });
+  if (a.status === "offer") parts.push({ label: "Tarjous", xp: r.offer });
+  return parts;
+}
+export const xpForApp = (a: Pick<Application, "cv" | "att" | "status">) => xpParts(a).reduce((s, p) => s + p.xp, 0);
+export const avgXpPerApp = (apps: Application[]) =>
+  apps.length ? apps.reduce((s, a) => s + xpForApp(a), 0) / apps.length : XP_RULES.application;
+
+/**
+ * ISO week in which each earned badge was first reached, found by replaying the applications day by day.
+ * Statuses are taken as they are now, so an outcome badge counts from the application's date.
+ */
+export function badgeWeeks(apps: Application[], goal: number, today: string): Record<string, number> {
+  const out: Record<string, number> = {};
+  const days = [...new Set(apps.map((a) => a.d))].sort();
+  for (const d of days) {
+    const g = gameState(
+      apps.filter((a) => a.d <= d),
+      goal,
+      d,
+    );
+    g.badges.forEach((id) => (out[id] ??= isoWeek(d)));
+  }
+  gameState(apps, goal, today).badges.forEach((id) => (out[id] ??= isoWeek(today)));
+  return out;
 }
 
 export interface Celebration {

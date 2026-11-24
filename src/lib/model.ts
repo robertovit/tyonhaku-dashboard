@@ -30,10 +30,10 @@ export interface Application extends ApplicationDoc {
 }
 
 export const STATUS: Record<Status, { label: string; color: string }> = {
-  offer: { label: "Tarjous", color: "var(--good)" },
-  int: { label: "Haastattelu", color: "var(--accent)" },
-  wait: { label: "Ei vastausta", color: "var(--wait)" },
-  no: { label: "Ei valittu", color: "var(--no)" },
+  offer: { label: "Tarjous", color: "var(--st-offer)" },
+  int: { label: "Haastattelu", color: "var(--st-int)" },
+  wait: { label: "Ei vastausta", color: "var(--st-wait)" },
+  no: { label: "Ei valittu", color: "var(--st-no)" },
 };
 export const STATUS_ORDER: Status[] = ["offer", "int", "wait", "no"];
 

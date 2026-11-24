@@ -2,8 +2,8 @@ import { describe, expect, it } from "vitest";
 import { FIXTURE, FIXTURE_TODAY } from "../dev/fixtures";
 import { classifyType, normalize, toDoc } from "./model";
 import { dayDiff, isoWeek, waitingSince, weekKey } from "./dates";
-import { followups, orgRanking, summary, weeklySeries } from "./stats";
-import { celebrationFor, gameState, levelFor } from "./game";
+import { followups, funnel, orgRanking, summary, weeklySeries } from "./stats";
+import { badgeWeeks, celebrationFor, gameState, levelFor, XP_RULES, xpForApp, xpParts } from "./game";
 import { toCsv } from "./csv";
 
 const today = FIXTURE_TODAY;
@@ -74,6 +74,9 @@ describe("stats", () => {
     expect(r.due).toHaveLength(2);
     expect(r.snoozed).toHaveLength(1);
   });
+  it("builds the outcome funnel", () => {
+    expect(funnel(apps).map((r) => r.value)).toEqual([20, 14, 1, 0]);
+  });
   it("buckets applications per ISO week up to the current week", () => {
     const w = weeklySeries(apps, today);
     expect(w[0].week).toBe(28);
@@ -104,6 +107,19 @@ describe("game", () => {
     expect(c.newBadges).toEqual(["quarter"]);
     expect(c.text).toContain("Viikkotavoite täynnä!");
     expect(c.confetti).toBe(160);
+  });
+  it("splits XP per application so the parts add up to the total", () => {
+    const perApp = apps.reduce((s, a) => s + xpForApp(a), 0);
+    expect(perApp + g.weeks.met * XP_RULES.fullWeek).toBe(g.xp);
+    expect(xpParts({ cv: "CV_UX", att: "CV, saatekirje", status: "offer" }).map((p) => p.xp)).toEqual([
+      10, 5, 3, 50, 200,
+    ]);
+  });
+  it("dates every earned badge to the week it was reached", () => {
+    const w = badgeWeeks(apps, 5, today);
+    expect(Object.keys(w).sort()).toEqual([...g.badges].sort());
+    expect(w.first).toBe(28);
+    expect(w.burst).toBe(33);
   });
   it("gives a small note for a handled rejection", () => {
     const after = gameState(

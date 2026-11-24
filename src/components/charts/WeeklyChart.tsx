@@ -3,7 +3,6 @@ import { GridRows } from "@visx/grid";
 import { Group } from "@visx/group";
 import { scaleBand, scaleLinear } from "@visx/scale";
 import type { WeekBucket } from "../../lib/stats";
-import { topRounded } from "./HBarChart";
 import { useChartTooltip } from "./Tooltip";
 import { useWidth } from "../../hooks/useWidth";
 
@@ -59,9 +58,12 @@ export function WeeklyChart({ weeks, goal }: { weeks: WeekBucket[]; goal: number
                         <rect className="hit" x={x(w.key)} y={0} width={x.bandwidth()} height={ih} />
                         {w.count > 0 && (
                           <>
-                            <path
+                            <rect
                               className={`bar grow-y ${met ? "bar-accent" : "bar-base"}`}
-                              d={topRounded(bx, y(w.count), bw, h, 4)}
+                              x={bx}
+                              y={y(w.count)}
+                              width={bw}
+                              height={h}
                             />
                             <text className="bar-value" x={bx + bw / 2} y={y(w.count) - 6} textAnchor="middle">
                               {w.count}
@@ -69,7 +71,13 @@ export function WeeklyChart({ weeks, goal }: { weeks: WeekBucket[]; goal: number
                           </>
                         )}
                         {w.isNow && (
-                          <rect className="now-outline" x={bx - 3} y={-6} width={bw + 6} height={ih + 6} rx={6} />
+                          <rect
+                            className="now-outline"
+                            x={bx - 3}
+                            y={Math.min(y(w.count), ih - 4) - 3}
+                            width={bw + 6}
+                            height={Math.max(h, 4) + 3}
+                          />
                         )}
                       </g>
                     );

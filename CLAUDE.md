@@ -23,7 +23,14 @@ Omit `capabilities` on a republish to keep them as they are.
   `src/lib/claude.ts` implements them with `window.claude` (db / user / sample / downloads). Components never touch `window.claude`.
   To move off claude.ai, write another implementation of `store.ts` and swap `connect()`.
 - `src/components/` – UI; `src/components/charts/` – visx charts (`HBarChart`, `WeeklyChart`, `OutcomeBar`, shared `Tooltip`)
-- `src/styles/app.css` – design tokens (light/dark) and styles; colors always via tokens
+- `src/styles/app.css` – design tokens and styles; colors always via tokens (status colors are `--st-<status>`)
+
+## Look (Havu)
+A dark JRPG menu: framed panels (`.frame`), DotGothic16 for headings and numbers (`.pix`),
+M PLUS Rounded 1c for body text, lime accent. Dark is the designed theme; the light theme is derived from it.
+The designs are on the owner's Design canvas (kept outside the repo, like the artifact URL).
+Views are switched from the command menu (`CommandMenu` in `Tabs.tsx`), which becomes a bottom bar under 720 px.
+The avatar is a 16×16 pixel character (`Avatar.tsx`) that gains an item per level.
 
 ## Data model
 Collection `applications/<id>` holds `ApplicationDoc` (see `model.ts`); `settings/goal` holds `{weekly}`.
@@ -34,9 +41,12 @@ Open applications (`type: "open"`) are excluded from follow-up reminders.
 
 ## Game rules
 XP, levels, streaks and badges are derived from the applications in `game.ts` – nothing extra is stored.
+`xpParts`/`xpForApp` give one application's XP (log column, the dialog's PALKKIO panel); `badgeWeeks` replays the
+applications to date each badge.
 Rewards effort, not outcomes (a handled rejection also gives XP). Tests in `src/lib/logic.test.ts` pin the
 known values of the fixture (380 XP, level 3, 10/14 badges, 3 follow-ups); update them deliberately when rules change.
 
 ## Conventions
-- Keep real application data out of the repo; fixtures use invented employers.
+- This repo is public. Keep real application data, real company names, and the artifact and Design canvas URLs
+  out of it; fixtures use invented employers.
 - Pass `today` into logic functions instead of reading the clock, so tests stay deterministic.

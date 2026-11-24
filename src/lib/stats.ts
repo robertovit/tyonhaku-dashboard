@@ -121,3 +121,14 @@ export function typeCounts(apps: Application[]): [JobType, number][] {
 
 export const competition = (apps: Application[]) =>
   apps.filter((a) => a.n != null).sort((a, b) => (b.n as number) - (a.n as number));
+
+/** Haettu → vastaus saatu → haastattelu → tarjous. */
+export function funnel(apps: Application[]) {
+  const c = countBy(apps);
+  return [
+    { key: "haettu", label: "Haettu", value: apps.length },
+    { key: "vastaus", label: "Vastaus saatu", value: apps.length - c.wait },
+    { key: "haastattelu", label: "Haastattelu", value: c.int + c.offer },
+    { key: "tarjous", label: "Tarjous", value: c.offer },
+  ];
+}

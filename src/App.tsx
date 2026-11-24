@@ -1,48 +1,21 @@
 import { useEffect, useMemo, useState } from "react";
-import { Badges, FollowupList, GameCard, StreakCard, WeeklyPanel } from "./components/Today";
+import { ItemsPanel, PlayerPanel, QuestPanel, WeeksPanel } from "./components/Today";
 import { StatsView } from "./components/Stats";
 import { LogTable } from "./components/LogTable";
 import { EditDialog, type EditTarget } from "./components/EditDialog";
 import { Confetti, Toast } from "./components/Effects";
-import { Tabs, useView } from "./components/Tabs";
+import { CommandMenu, useView } from "./components/Tabs";
 import { useBackend } from "./hooks/useBackend";
 import { useCelebration } from "./hooks/useCelebration";
 import { useToast } from "./hooks/useToast";
-import { addDays, isoWeek, todayIso } from "./lib/dates";
-import { gameState } from "./lib/game";
-import { followups, presentStatuses, SNOOZE_DAYS, summary, typeCounts, weeklySeries } from "./lib/stats";
-import { TYPES, type Application, type ApplicationDoc } from "./lib/model";
+import { addDays, fmtDate, isoWeek, todayIso, weekday } from "./lib/dates";
+import { avgXpPerApp, badgeWeeks, gameState } from "./lib/game";
+import { followups, presentStatuses, SNOOZE_DAYS, summary, weeklySeries } from "./lib/stats";
+import type { Application, ApplicationDoc } from "./lib/model";
 import { toCsv } from "./lib/csv";
 import { UserFacingError } from "./lib/store";
 
-const MONTHS_FROM = [
-  "tammikuusta",
-  "helmikuusta",
-  "maaliskuusta",
-  "huhtikuusta",
-  "toukokuusta",
-  "kesäkuusta",
-  "heinäkuusta",
-  "elokuusta",
-  "syyskuusta",
-  "lokakuusta",
-  "marraskuusta",
-  "joulukuusta",
-];
-const MONTHS_TO = [
-  "tammikuuhun",
-  "helmikuuhun",
-  "maaliskuuhun",
-  "huhtikuuhun",
-  "toukokuuhun",
-  "kesäkuuhun",
-  "heinäkuuhun",
-  "elokuuhun",
-  "syyskuuhun",
-  "lokakuuhun",
-  "marraskuuhun",
-  "joulukuuhun",
-];
+const WEEKDAYS = ["ma", "ti", "ke", "to", "pe", "la", "su"];
 
 export default function App() {
   const { backend, apps, pending, goal, error } = useBackend();
@@ -65,6 +38,7 @@ export default function App() {
   const weeks = useMemo(() => weeklySeries(list, today), [list, today]);
   const fu = useMemo(() => followups(list, today), [list, today]);
   const present = useMemo(() => presentStatuses(list), [list]);
+  const earnedWeeks = useMemo(() => badgeWeeks(list, goal, today), [list, goal, today]);
 
   const flash = (id: string) => {
     setHighlight(id);
@@ -117,117 +91,134 @@ export default function App() {
 
   const has = list.length > 0;
   const s = summary(list);
-  const dates = list.map((a) => a.d).sort();
-  const types = typeCounts(list);
-  const m0 = has ? +dates[0].slice(5, 7) - 1 : 0;
-  const m1 = has ? +dates[dates.length - 1].slice(5, 7) - 1 : 0;
-  const lede = has
-    ? `${s.total} hakemusta ${s.orgCount} työnantajalle ${m0 === m1 ? MONTHS_FROM[m0].replace(/sta$/, "ssa") : `${MONTHS_FROM[m0]} ${MONTHS_TO[m1]}`}. Eniten hakemuksia kohdistui ryhmään ${TYPES[types[0][0]].toLowerCase()} (${types[0][1]} kpl).`
-    : "Kirjaa hakemukset, niin näet tahtisi, lopputulokset ja edistymisesi.";
-  const range = weeks.length
-    ? `vko ${weeks[0].week}–${weeks[weeks.length - 1].week} / ${dates[0].slice(0, 4)}`
-    : `vko ${isoWeek(today)}`;
+  const add = canWrite ? () => setEdit({ app: null }) : null;
+  const csv = backend?.downloads && has ? () => void exportCsv() : null;
 
   return (
     <div className="wrap">
-      <header>
-        <div className="eyebrow">Haetut paikat · {range}</div>
+      <header className="frame topbar">
         <h1>Työnhaku 2026</h1>
-        <p className="lede">{lede}</p>
-        <div className="toolbar">
-          <div className="source" data-state={state}>
-            <i />
-            <span className="txt">{statusText}</span>
-          </div>
-          <div className="toolbar-actions">
-            {backend?.downloads && has && (
-              <button type="button" className="btn" onClick={() => void exportCsv()}>
-                Lataa CSV
-              </button>
-            )}
-            {canWrite && (
-              <button type="button" className="btn primary" onClick={() => setEdit({ app: null })}>
-                + Lisää hakemus
-              </button>
-            )}
-          </div>
+        <div className="topstats">
+          <span>
+            <span>VKO</span> {isoWeek(today)}
+            <span className="wide">
+              {" "}
+              · {WEEKDAYS[weekday(today)]} {fmtDate(today)}
+            </span>
+          </span>
+          {has && (
+            <>
+              <span>
+                <span>HAKEMUKSET</span> {s.total}
+              </span>
+              <span className="wide">
+                <span>TYÖNANTAJAT</span> {s.orgCount}
+              </span>
+            </>
+          )}
         </div>
       </header>
 
-      {apps && !has && canWrite && (
-        <section className="panel empty">
-          <h2>Ei vielä hakemuksia</h2>
-          <p className="lede">Kirjaa ensimmäinen hakemus, niin yhteenveto, kaaviot ja hakuloki täyttyvät.</p>
-          <button type="button" className="btn primary" onClick={() => setEdit({ app: null })}>
-            + Lisää hakemus
-          </button>
-        </section>
+      {(state === "stale" || state === "snapshot") && statusText && (
+        <p className="frame notice" role="status">
+          {statusText}
+        </p>
       )}
 
-      {has && game && (
-        <div id="dash">
-          <Tabs view={view} onChange={setView} followupCount={fu.due.length} total={list.length} />
-          <div
-            className="view"
-            id="view-tanaan"
-            role="tabpanel"
-            aria-labelledby="tab-tanaan"
-            hidden={view !== "tanaan"}
-          >
-            <div className="game" aria-label="Edistyminen">
-              <GameCard game={game} />
-              <StreakCard game={game} goal={goal} />
-            </div>
-            <FollowupList
-              due={fu.due}
-              snoozed={fu.snoozed}
-              canWrite={canWrite}
-              onReject={(a) => patch(a, { status: "no" })}
-              onSnooze={(a) => patch(a, { snoozeUntil: addDays(today, SNOOZE_DAYS) })}
-              onEdit={(a) => setEdit({ app: a })}
-            />
-            <div className="grid2">
-              <WeeklyPanel
-                weeks={weeks}
-                goal={goal}
-                game={game}
-                today={today}
-                canWrite={canWrite}
-                onGoal={(n) => guard(() => store!.setGoal(n))}
-              />
-              <Badges game={game} fresh={celebration?.newBadges ?? []} />
-            </div>
-          </div>
-          <div
-            className="view"
-            id="view-tilastot"
-            role="tabpanel"
-            aria-labelledby="tab-tilastot"
-            hidden={view !== "tilastot"}
-          >
-            {view === "tilastot" && <StatsView apps={list} present={present} />}
-          </div>
-          <div className="view" id="view-loki" role="tabpanel" aria-labelledby="tab-loki" hidden={view !== "loki"}>
-            <LogTable
-              apps={list}
-              present={present}
-              today={today}
-              canWrite={canWrite}
-              highlight={highlight}
-              onEdit={(a) => setEdit({ app: a })}
-            />
-          </div>
-        </div>
-      )}
-
-      <footer>
-        Hakemukset tallentuvat tämän dashboardin omaan tietokantaan. Vain sinä voit muokata niitä. Lataa CSV -napista
-        saat oman varmuuskopion.
-      </footer>
+      <div className="layout">
+        {has && (
+          <CommandMenu
+            view={view}
+            onChange={setView}
+            followupCount={fu.due.length}
+            total={list.length}
+            onAdd={add}
+            onCsv={csv}
+          />
+        )}
+        <main className="content">
+          {!apps && <p className="sub">{statusText}</p>}
+          {apps && !has && (
+            <section className="frame empty">
+              <h2>Ei vielä hakemuksia</h2>
+              <p className="sub">
+                {canWrite
+                  ? "Kirjaa ensimmäinen hakemus, niin hahmosi, tilastot ja hakuloki täyttyvät."
+                  : "Hakemuksia ei ole vielä kirjattu."}
+              </p>
+              {add && (
+                <button type="button" className="btn primary" onClick={add}>
+                  + Lisää hakemus
+                </button>
+              )}
+            </section>
+          )}
+          {has && game && (
+            <>
+              <div
+                className="view"
+                id="view-tanaan"
+                role="tabpanel"
+                aria-labelledby="tab-tanaan"
+                hidden={view !== "tanaan"}
+              >
+                <PlayerPanel
+                  game={game}
+                  goal={goal}
+                  avgXp={avgXpPerApp(list)}
+                  canWrite={canWrite}
+                  onGoal={(n) => guard(() => store!.setGoal(n))}
+                />
+                <QuestPanel
+                  due={fu.due}
+                  snoozed={fu.snoozed}
+                  canWrite={canWrite}
+                  onReject={(a) => patch(a, { status: "no" })}
+                  onSnooze={(a) => patch(a, { snoozeUntil: addDays(today, SNOOZE_DAYS) })}
+                  onEdit={(a) => setEdit({ app: a })}
+                />
+                <div className="row">
+                  <ItemsPanel game={game} fresh={celebration?.newBadges ?? []} weeks={earnedWeeks} />
+                  <WeeksPanel weeks={weeks} goal={goal} />
+                </div>
+              </div>
+              <div
+                className="view"
+                id="view-tilastot"
+                role="tabpanel"
+                aria-labelledby="tab-tilastot"
+                hidden={view !== "tilastot"}
+              >
+                {view === "tilastot" && <StatsView apps={list} present={present} />}
+              </div>
+              <div className="view" id="view-loki" role="tabpanel" aria-labelledby="tab-loki" hidden={view !== "loki"}>
+                <LogTable
+                  apps={list}
+                  present={present}
+                  today={today}
+                  xp={game.xp}
+                  canWrite={canWrite}
+                  highlight={highlight}
+                  onEdit={(a) => setEdit({ app: a })}
+                  onCsv={csv}
+                />
+              </div>
+            </>
+          )}
+          <footer>
+            <span className="source" data-state={state}>
+              {statusText}
+            </span>
+            <span>Vain sinä voit muokata hakemuksia. Lataa CSV:llä saat oman varmuuskopion.</span>
+          </footer>
+        </main>
+      </div>
 
       <EditDialog
         target={edit}
         today={today}
+        apps={list}
+        goal={goal}
         assistant={canWrite ? (backend?.assistant ?? null) : null}
         onSave={saveApp}
         onDelete={(id) => store!.remove(id)}

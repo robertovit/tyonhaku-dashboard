@@ -26,8 +26,8 @@ export function Confetti({ burst, count }: { burst: number; count: number }) {
     const H = (c.height = innerHeight);
     c.hidden = false;
     const css = getComputedStyle(document.documentElement);
-    const cols = ["--gold", "--accent", "--flame", "--good", "--bar"].map(
-      (v) => css.getPropertyValue(v).trim() || "#c98500",
+    const cols = ["--accent", "--accent-2", "--st-int", "--st-wait", "--warm"].map(
+      (v) => css.getPropertyValue(v).trim() || "#c8f169",
     );
     const ps = Array.from({ length: count }, () => ({
       x: W / 2 + (Math.random() - 0.5) * W * 0.3,
