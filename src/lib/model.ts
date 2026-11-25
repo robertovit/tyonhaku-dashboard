@@ -1,4 +1,5 @@
-export type Status = "offer" | "int" | "wait" | "no";
+/** `todo` = saved ad, not applied yet: it earns no XP and stays out of the statistics until applied. */
+export type Status = "offer" | "int" | "wait" | "no" | "todo";
 export type JobType = "trainee" | "expert" | "open";
 
 /** Current shape of a stored application document. Bump SCHEMA and extend normalize() when fields change. */
@@ -34,7 +35,9 @@ export const STATUS: Record<Status, { label: string; color: string }> = {
   int: { label: "Haastattelu", color: "var(--st-int)" },
   wait: { label: "Ei vastausta", color: "var(--st-wait)" },
   no: { label: "Ei valittu", color: "var(--st-no)" },
+  todo: { label: "Haettava", color: "var(--st-todo)" },
 };
+/** Outcomes of sent applications, in display order (`todo` is not an outcome). */
 export const STATUS_ORDER: Status[] = ["offer", "int", "wait", "no"];
 
 export const TYPES: Record<JobType, string> = {

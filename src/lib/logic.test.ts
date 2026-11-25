@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { FIXTURE, FIXTURE_TODAY } from "../dev/fixtures";
 import { classifyType, normalize, toDoc } from "./model";
-import { dayDiff, isoWeek, waitingSince, weekKey } from "./dates";
+import { dayDiff, deadlineIso, isoWeek, parseFinDate, waitingSince, weekKey } from "./dates";
 import { followups, funnel, orgRanking, summary, weeklySeries } from "./stats";
 import { badgeWeeks, celebrationFor, gameState, levelFor, XP_RULES, xpForApp, xpParts } from "./game";
 import { toCsv } from "./csv";
@@ -15,6 +15,12 @@ describe("dates", () => {
     expect(isoWeek("2026-10-03")).toBe(40);
     expect(isoWeek("2027-01-01")).toBe(53);
     expect(weekKey("2026-07-12")).toBe("2026-28");
+  });
+  it("parses Finnish deadlines, rolling over the new year and rejecting impossible dates", () => {
+    expect(parseFinDate("7.12.", "2026-11-24")).toBe("2026-12-07");
+    expect(parseFinDate("15.1.", "2026-11-24")).toBe("2027-01-15");
+    expect(parseFinDate("31.2.", "2026-11-24")).toBeNull();
+    expect(deadlineIso({ d: "2026-11-24", end: "jatkuva haku" })).toBeNull();
   });
   it("counts the wait from the deadline when it is later than the application", () => {
     expect(waitingSince({ d: "2026-08-15", end: "23.8." })).toBe("2026-08-23");
@@ -50,7 +56,7 @@ describe("stats", () => {
   it("summarizes the search", () => {
     const s = summary(apps);
     expect(s.total).toBe(20);
-    expect(s.counts).toEqual({ offer: 0, int: 1, wait: 6, no: 13 });
+    expect(s.counts).toEqual({ offer: 0, int: 1, wait: 6, no: 13, todo: 0 });
     expect(s.answered).toBe(14);
     expect(s.medianN).toBe(150);
     expect(s.orgCount).toBe(14);
@@ -120,6 +126,11 @@ describe("game", () => {
     expect(Object.keys(w).sort()).toEqual([...g.badges].sort());
     expect(w.first).toBe(28);
     expect(w.burst).toBe(33);
+  });
+  it("gives no XP for a saved ad that is not applied yet", () => {
+    expect(xpForApp({ cv: "CV", att: "CV, saatekirje", status: "todo" })).toBe(0);
+    const todo = normalize("t", { org: "Haettava Oy", status: "todo", d: today }, today);
+    expect(todo.status).toBe("todo");
   });
   it("gives a small note for a handled rejection", () => {
     const after = gameState(

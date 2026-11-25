@@ -210,6 +210,7 @@ export interface XpPart {
 /** What one application is worth on its own (weekly bonuses come on top). Matches the sums in gameState(). */
 export function xpParts(a: Pick<Application, "cv" | "att" | "status">): XpPart[] {
   const r = XP_RULES;
+  if (a.status === "todo") return [];
   const parts: XpPart[] = [{ label: "Hakemus", xp: r.application }];
   if (a.cv.trim()) parts.push({ label: "Räätälöity CV", xp: r.tailoredCv });
   if (/saatekirje/i.test(a.att)) parts.push({ label: "Saatekirje", xp: r.coverLetter });
