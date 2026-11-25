@@ -16,6 +16,17 @@ Tarvitset Cloudflare-tilin (dash.cloudflare.com) ja pääsyn tähän GitHub-repo
 
 Sivuston osoite on muotoa `https://<projektin-nimi>.pages.dev`. Älä vielä jaa sitä kenellekään, koska tietokanta ja kirjautuminen puuttuvat.
 
+### Oma osoite (valinnainen)
+
+Jos sinulla on oma domain samalla Cloudflare-tilillä, sovellus voi olla sen alidomainissa, esimerkiksi `tyonhaku.<oma-domain>`. Sellainen osoite on helpompi muistaa ja kirjoittaa puhelimella.
+
+1. Avaa Pages-projektin **Custom domains → Set up a custom domain** ja kirjoita alidomain.
+2. Cloudflare lisää DNS-tietueen itse. Osoite toimii yleensä muutamassa minuutissa.
+
+`pages.dev`-osoite jää toimimaan oman osoitteen rinnalle, joten vaiheessa 3 molemmat osoitteet laitetaan kirjautumisen taakse.
+
+Alidomainin nimi näkyy julkisissa varmennelokeissa (certificate transparency). Kuka tahansa voi siis nähdä, että osoite on olemassa, mutta sisältö on kirjautumisen takana. Älä laita nimeen mitään, minkä et halua olevan julkista.
+
 ## 2. Tietokanta (D1)
 
 1. Avaa **Workers & Pages → D1 SQL Database → Create** ja anna nimeksi esimerkiksi `tyonhaku`.
@@ -30,7 +41,7 @@ Tauluja ei tarvitse luoda itse. Sovellus luo ne ensimmäisellä käyttökerralla
 
 1. Avaa **Zero Trust** (vasen valikko). Jos käytät sitä ensimmäistä kertaa, valitse tiimille nimi (team name) ja ilmainen Free-paketti.
 2. Avaa **Access → Applications → Add an application → Self-hosted**.
-   - Application domain: Pagesin osoite, esimerkiksi `<projektin-nimi>.pages.dev`
+   - Application domain: Pagesin osoite, esimerkiksi `<projektin-nimi>.pages.dev`. Jos teit oman osoitteen, lisää samaan sovellukseen myös se (**Add public hostname**). Molemmat osoitteet käyttävät samaa AUD-tagia.
    - Policy: **Allow**, ehdoksi **Emails** ja oma sähköpostiosoitteesi
    - Kirjautumistavaksi riittää **One-time PIN**, jolloin koodi tulee sähköpostiin. Google-kirjautumisen voi lisätä myöhemmin.
 3. Kun sovellus on tallennettu, avaa se ja kopioi **Application Audience (AUD) Tag**.
@@ -56,7 +67,7 @@ Varmuuskopion saa jatkossa samasta paikasta valinnalla **Lataa varmuuskopio (JSO
 
 ## 5. Puhelimeen (Android)
 
-1. Avaa sovelluksen osoite puhelimen Chromessa ja kirjaudu.
+1. Avaa sovelluksen osoite puhelimen Chromessa ja kirjaudu. Jos teit oman osoitteen, käytä sitä: asennettu sovellus ja Jaa-valikon kohde kuuluvat siihen osoitteeseen, josta asennat.
 2. Valitse valikosta ⋮ → **Asenna sovellus** (tai **Lisää aloitusnäytölle**).
 3. Työnhaku-ikoni (pikselihahmo) ilmestyy aloitusnäytölle, ja sovellus aukeaa ilman selaimen palkkeja.
 
@@ -78,4 +89,5 @@ Ilmoitus näkyy Tänään-näkymän **Haettavat**-listassa. Lähestyvät määr�
 | "Tietokantaa ei ole liitetty" | D1-binding puuttuu tai sen nimi ei ole täsmälleen `DB` (vaihe 2). |
 | "Tällä tunnuksella ei ole pääsyä" | Kirjauduit eri sähköpostilla kuin `ALLOWED_EMAIL`. |
 | "Kirjautuminen on vanhentunut" | Access-istunto on päättynyt. Paina **Kirjaudu uudelleen**. |
+| Toinen osoite näyttää tyhjää tai kysyy kirjautumista uudelleen | Osoite puuttuu Access-sovelluksesta. Lisää se vaiheen 3 kohdassa Add public hostname. Kirjautuminen on osoitekohtainen, joten kummassakin osoitteessa kirjaudutaan erikseen. |
 | Työnhaku ei näy Jaa-valikossa | Sovellus pitää asentaa Chromen kautta (vaihe 5). Pelkkä kirjanmerkki ei riitä. |
