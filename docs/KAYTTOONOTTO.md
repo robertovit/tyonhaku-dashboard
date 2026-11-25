@@ -1,6 +1,6 @@
 # Käyttöönotto: oma sovellus Cloudflareen
 
-Tällä ohjeella saat työnhaun seurannan omaksi sovellukseksi, joka toimii selaimessa ja puhelimessa. Sinun lisäksesi kukaan muu ei pääse siihen. Kaikki tarvittava kuuluu Cloudflaren ilmaiseen tasoon.
+Tällä ohjeella saat työnhaun seurannan omaksi sovellukseksi, joka toimii selaimessa ja puhelimessa. Sinun lisäksesi kukaan muu ei pääse siihen. Kaikki tarvittava kuuluu Cloudflaren ilmaiseen tasoon. Kirjautumisen (Zero Trust) käyttöönotossa Cloudflare pyytää maksutavan, mutta ilmaisesta paketista ei veloiteta mitään.
 
 Tarvitset Cloudflare-tilin (dash.cloudflare.com) ja pääsyn tähän GitHub-repoon. Aikaa kuluu noin 20 minuuttia, ja vaiheet tehdään vain kerran.
 
@@ -39,7 +39,7 @@ Tauluja ei tarvitse luoda itse. Sovellus luo ne ensimmäisellä käyttökerralla
 
 ## 3. Kirjautuminen (Cloudflare Access)
 
-1. Avaa **Zero Trust** (vasen valikko). Jos käytät sitä ensimmäistä kertaa, valitse tiimille nimi (team name) ja ilmainen Free-paketti.
+1. Avaa **Zero Trust** (vasen valikko). Jos käytät sitä ensimmäistä kertaa, valitse tiimille nimi (team name) ja ilmainen Free-paketti. Cloudflare pyytää maksutavan (kortti tai PayPal), mutta Free-paketista ei veloiteta. Maksu tulisi vasta, jos vaihdat itse maksulliseen pakettiin.
 2. Avaa **Access → Applications → Add an application → Self-hosted**.
    - Application domain: Pagesin osoite, esimerkiksi `<projektin-nimi>.pages.dev`. Jos teit oman osoitteen, lisää samaan sovellukseen myös se (**Add public hostname**). Molemmat osoitteet käyttävät samaa AUD-tagia.
    - Policy: **Allow**, ehdoksi **Emails** ja oma sähköpostiosoitteesi
