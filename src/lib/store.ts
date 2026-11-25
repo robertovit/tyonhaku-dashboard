@@ -1,5 +1,6 @@
-// The app talks to its data only through these interfaces. lib/claude.ts implements them on top of
-// the claude.ai artifact runtime; swapping the backend (e.g. to Supabase) means replacing that one file.
+// The app talks to its data only through these interfaces. Two implementations: lib/web.ts (own server,
+// Cloudflare Pages Functions + D1) and lib/claude.ts (claude.ai artifact runtime); lib/backend.ts picks one.
+import type { Backup } from "./backup";
 import type { Application, ApplicationDoc } from "./model";
 
 export interface StoreListener {
@@ -53,6 +54,8 @@ export interface Backend {
   store: ApplicationStore | null;
   assistant: Assistant | null;
   downloads: Downloads | null;
+  /** Writes a backup into the store (upsert by id); null when the backend cannot import. */
+  restore?: ((b: Backup) => Promise<void>) | null;
   /** Why there is no store, for the status line. */
   reason?: string;
 }

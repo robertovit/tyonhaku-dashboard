@@ -351,3 +351,76 @@ export function WeeksPanel({ weeks, goal }: { weeks: WeekBucket[]; goal: number 
     </section>
   );
 }
+
+export interface TodoItem {
+  app: Application;
+  deadline: string | null;
+  daysLeft: number | null;
+}
+/** Days left before a saved ad's deadline counts as urgent (shown on the Tänään badge). */
+export const URGENT_DAYS = 3;
+
+/** Saved ads not applied for yet, soonest deadline first. */
+export function TodoPanel({
+  items,
+  canWrite,
+  onApply,
+  onEdit,
+}: {
+  items: TodoItem[];
+  canWrite: boolean;
+  onApply: (a: Application) => void;
+  onEdit: (a: Application) => void;
+}) {
+  if (!items.length) return null;
+  const urgent = items.filter((t) => t.daysLeft != null && t.daysLeft >= 0 && t.daysLeft <= URGENT_DAYS).length;
+  const due = (t: TodoItem) =>
+    t.deadline == null
+      ? t.app.end || "ei määräaikaa"
+      : t.daysLeft! < 0
+        ? `päättyi ${fmtDate(t.deadline)}`
+        : t.daysLeft === 0
+          ? "päättyy tänään"
+          : `päättyy ${fmtDate(t.deadline)}`;
+  return (
+    <section className="frame" aria-labelledby="todoH">
+      <div className="ph">
+        <h2 id="todoH">Haettavat</h2>
+        {urgent > 0 && <span className="count">{urgent}</span>}
+        <span className="sub">Talteen otetut ilmoitukset, määräaika ensin</span>
+      </div>
+      <ul className="todos">
+        {items.map((t) => (
+          <li key={t.app.id} className={`todo${t.daysLeft != null && t.daysLeft < 0 ? " past" : ""}`}>
+            <span className="what">
+              <b>{t.app.org}</b>
+              {t.app.role && ` · ${t.app.role}`}
+              {t.app.url && (
+                <>
+                  {" "}
+                  <a href={t.app.url} target="_blank" rel="noopener">
+                    ilmoitus ↗
+                  </a>
+                </>
+              )}
+              <span className="sub when">{due(t)}</span>
+            </span>
+            {t.daysLeft != null && t.daysLeft >= 0 && (
+              <span className={`q-days${t.daysLeft <= URGENT_DAYS ? " urgent" : ""}`}>{t.daysLeft} PV</span>
+            )}
+            {canWrite && (
+              <span className="todo-actions">
+                <button type="button" className="btn sel" onClick={() => onApply(t.app)}>
+                  Merkitse haetuksi <span className="xp">+{XP_RULES.application} XP</span>
+                </button>
+                <button type="button" className="btn" onClick={() => onEdit(t.app)}>
+                  Muokkaa
+                </button>
+              </span>
+            )}
+          </li>
+        ))}
+      </ul>
+    </section>
+  );
+}

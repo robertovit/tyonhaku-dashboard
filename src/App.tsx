@@ -1,5 +1,13 @@
 import { useEffect, useMemo, useState } from "react";
-import { ItemsPanel, PlayerPanel, QuestPanel, WeeksPanel } from "./components/Today";
+import {
+  ItemsPanel,
+  PlayerPanel,
+  QuestPanel,
+  TodoPanel,
+  URGENT_DAYS,
+  WeeksPanel,
+  type TodoItem,
+} from "./components/Today";
 import { StatsView } from "./components/Stats";
 import { LogTable } from "./components/LogTable";
 import { EditDialog, type EditTarget } from "./components/EditDialog";
@@ -8,12 +16,15 @@ import { CommandMenu, useView } from "./components/Tabs";
 import { useBackend } from "./hooks/useBackend";
 import { useCelebration } from "./hooks/useCelebration";
 import { useToast } from "./hooks/useToast";
-import { addDays, fmtDate, isoWeek, todayIso, weekday } from "./lib/dates";
+import { addDays, dayDiff, deadlineIso, fmtDate, isoWeek, todayIso, weekday } from "./lib/dates";
 import { avgXpPerApp, badgeWeeks, gameState } from "./lib/game";
 import { followups, presentStatuses, SNOOZE_DAYS, summary, weeklySeries } from "./lib/stats";
 import type { Application, ApplicationDoc } from "./lib/model";
 import { toCsv } from "./lib/csv";
+import { parseBackup, toBackup } from "./lib/backup";
+import { parseShare } from "./lib/share";
 import { UserFacingError } from "./lib/store";
+import { AUTH_MSG, LOGIN_URL } from "./lib/web";
 
 const WEEKDAYS = ["ma", "ti", "ke", "to", "pe", "la", "su"];
 
@@ -28,8 +39,22 @@ export default function App() {
   const [notice, setNotice] = useState("");
   const { toast, show } = useToast();
 
-  const list = useMemo(() => apps ?? [], [apps]);
-  const game = useMemo(() => (apps ? gameState(apps, goal, today) : null), [apps, goal, today]);
+  // Saved ads (status "todo") are not applications yet: everything below the todo list sees only `list`.
+  const all = useMemo(() => apps ?? [], [apps]);
+  const list = useMemo(() => all.filter((a) => a.status !== "todo"), [all]);
+  const todos = useMemo<TodoItem[]>(
+    () =>
+      all
+        .filter((a) => a.status === "todo")
+        .map((app) => {
+          const deadline = deadlineIso(app);
+          return { app, deadline, daysLeft: deadline ? dayDiff(today, deadline) : null };
+        })
+        .sort((x, y) => (x.deadline ?? "9999").localeCompare(y.deadline ?? "9999") || x.app.d.localeCompare(y.app.d)),
+    [all, today],
+  );
+  const urgent = todos.filter((t) => t.daysLeft != null && t.daysLeft >= 0 && t.daysLeft <= URGENT_DAYS).length;
+  const game = useMemo(() => (apps ? gameState(list, goal, today) : null), [apps, list, goal, today]);
   const { arm, celebration } = useCelebration(game);
   useEffect(() => {
     if (celebration) show(celebration.title, celebration.text);
@@ -63,14 +88,35 @@ export default function App() {
       await store!.update(a.id, { ...p, updatedAt: new Date().toISOString() });
       flash(a.id);
     }).catch(() => {});
-  const exportCsv = async () => {
-    if (!backend?.downloads || !list.length) return;
+  const download = async (name: string, data: string) => {
+    if (!backend?.downloads) return;
     try {
-      await backend.downloads.save(`tyonhaku-${today}.csv`, toCsv(list));
+      await backend.downloads.save(name, data);
     } catch (e) {
       if (e instanceof UserFacingError && e.message) show("Lataus ei onnistunut", e.message);
     }
   };
+  const exportCsv = () => download(`tyonhaku-${today}.csv`, toCsv(all));
+  const exportJson = () => download(`tyonhaku-${today}.json`, toBackup(all, goal, new Date().toISOString()));
+  const importJson = async (file: File) => {
+    try {
+      const b = parseBackup(await file.text(), today);
+      await backend!.restore!(b);
+      show(`Tuotiin ${b.items.length} hakemusta`, b.goal ? `Viikkotavoite ${b.goal}` : undefined);
+    } catch (e) {
+      show("Tuonti ei onnistunut", e instanceof Error ? e.message : "");
+    }
+  };
+
+  // An ad shared to the installed app (Android share menu) opens the add dialog as a saved ad.
+  const [shared, setShared] = useState(() => parseShare(location.search));
+  useEffect(() => {
+    if (!shared || !canWrite) return;
+    setView("tanaan");
+    setEdit({ app: null, prefill: { status: "todo", d: today, url: shared.url, role: shared.title } });
+    setShared(null);
+    history.replaceState(null, "", location.pathname + location.hash);
+  }, [shared, canWrite, today, setView]);
 
   // status line
   let state = "loading";
@@ -86,13 +132,14 @@ export default function App() {
         : "Hakemuksia ei ole vielä kirjattu."
       : pending
         ? "Tallennetaan…"
-        : `${apps.length} hakemusta tallessa${canWrite ? "" : " · vain luku"}`;
+        : `${list.length} hakemusta${todos.length ? `, ${todos.length} haettavaa` : ""} tallessa${canWrite ? "" : " · vain luku"}`;
   }
 
-  const has = list.length > 0;
+  const has = all.length > 0;
   const s = summary(list);
   const add = canWrite ? () => setEdit({ app: null }) : null;
   const csv = backend?.downloads && has ? () => void exportCsv() : null;
+  const authLost = error === AUTH_MSG || notice === AUTH_MSG;
 
   return (
     <div className="wrap">
@@ -121,7 +168,12 @@ export default function App() {
 
       {(state === "stale" || state === "snapshot") && statusText && (
         <p className="frame notice" role="status">
-          {statusText}
+          {statusText}{" "}
+          {authLost && (
+            <a className="btn sel" href={LOGIN_URL}>
+              Kirjaudu uudelleen
+            </a>
+          )}
         </p>
       )}
 
@@ -130,7 +182,7 @@ export default function App() {
           <CommandMenu
             view={view}
             onChange={setView}
-            followupCount={fu.due.length}
+            followupCount={fu.due.length + urgent}
             total={list.length}
             onAdd={add}
             onCsv={csv}
@@ -169,6 +221,12 @@ export default function App() {
                   canWrite={canWrite}
                   onGoal={(n) => guard(() => store!.setGoal(n))}
                 />
+                <TodoPanel
+                  items={todos}
+                  canWrite={canWrite}
+                  onApply={(a) => setEdit({ app: a, prefill: { status: "wait", d: today } })}
+                  onEdit={(a) => setEdit({ app: a })}
+                />
                 <QuestPanel
                   due={fu.due}
                   snoozed={fu.snoozed}
@@ -189,7 +247,12 @@ export default function App() {
                 aria-labelledby="tab-tilastot"
                 hidden={view !== "tilastot"}
               >
-                {view === "tilastot" && <StatsView apps={list} present={present} />}
+                {view === "tilastot" &&
+                  (list.length ? (
+                    <StatsView apps={list} present={present} />
+                  ) : (
+                    <p className="frame sub">Tilastot näkyvät, kun ensimmäinen hakemus on lähetetty.</p>
+                  ))}
               </div>
               <div className="view" id="view-loki" role="tabpanel" aria-labelledby="tab-loki" hidden={view !== "loki"}>
                 <LogTable
@@ -209,7 +272,26 @@ export default function App() {
             <span className="source" data-state={state}>
               {statusText}
             </span>
-            <span>Vain sinä voit muokata hakemuksia. Lataa CSV:llä saat oman varmuuskopion.</span>
+            <span>Vain sinä voit muokata hakemuksia.</span>
+            {backend?.downloads && has && (
+              <button type="button" className="linkbtn" onClick={() => void exportJson()}>
+                Lataa varmuuskopio (JSON)
+              </button>
+            )}
+            {canWrite && backend?.restore && (
+              <label className="linkbtn filebtn-inline">
+                Tuo varmuuskopio
+                <input
+                  type="file"
+                  accept="application/json,.json"
+                  onChange={(e) => {
+                    const file = e.target.files?.[0];
+                    if (file) void importJson(file);
+                    e.target.value = "";
+                  }}
+                />
+              </label>
+            )}
           </footer>
         </main>
       </div>

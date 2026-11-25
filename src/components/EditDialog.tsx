@@ -87,6 +87,8 @@ function buildDoc(draft: Draft, app: Application | null, now: string): Applicati
 
 export interface EditTarget {
   app: Application | null; // null = new application
+  /** Fields to start from, e.g. a shared ad or "mark as applied" on a saved one. */
+  prefill?: Partial<Pick<Draft, "status" | "d" | "url" | "role" | "org">>;
 }
 
 export function EditDialog({
@@ -123,13 +125,16 @@ export function EditDialog({
     const d = ref.current;
     if (!d) return;
     if (target && !d.open) {
-      setDraft(fromApp(target.app, today));
+      setDraft({ ...fromApp(target.app, today), ...target.prefill });
       setFilled(new Set());
       setError("");
       setArmedDelete(false);
       setTypeTouched(!!target.app);
       d.showModal();
-      setTimeout(() => (target.app ? nField.current : firstField.current)?.focus(), 0);
+      setTimeout(
+        () => (target.app && target.prefill?.status !== "wait" ? nField.current : firstField.current)?.focus(),
+        0,
+      );
     } else if (!target && d.open) d.close();
   }, [target, today]);
 
@@ -205,6 +210,14 @@ export function EditDialog({
     }
   };
 
+  const title =
+    app?.status === "todo" && draft.status !== "todo"
+      ? "Merkitse haetuksi"
+      : app
+        ? "Muokkaa hakemusta"
+        : draft.status === "todo"
+          ? "Uusi haettava"
+          : "Uusi hakemus";
   const f = (k: string, size = "") => `field${size ? ` ${size}` : ""}${filled.has(k) ? " filled" : ""}`;
   const base = { cv: draft.cv, att: draft.att };
   const statusXp = (k: Status) => xpForApp({ ...base, status: k }) - xpForApp({ ...base, status: "wait" });
@@ -213,9 +226,13 @@ export function EditDialog({
       {target && (
         <form onSubmit={submit} noValidate>
           <div className="dlg-head">
-            <h2 id="dlgTitle">{app ? "Muokkaa hakemusta" : "Uusi hakemus"}</h2>
+            <h2 id="dlgTitle">{title}</h2>
             <span className="sub">
-              {app ? `${app.org}${app.role ? ` · ${app.role}` : ""}` : "Uusi tehtävä kirjaan"}
+              {app
+                ? `${app.org}${app.role ? ` · ${app.role}` : ""}`
+                : target.prefill
+                  ? "Jaettu ilmoitus talteen"
+                  : "Uusi tehtävä kirjaan"}
             </span>
             <button type="button" className="btn x" aria-label="Sulje" onClick={onClose}>
               <svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true">
@@ -251,7 +268,7 @@ export function EditDialog({
                   />
                 </div>
                 <div className="field s">
-                  <label htmlFor="f-d">Haettu</label>
+                  <label htmlFor="f-d">{draft.status === "todo" ? "Lisätty" : "Haettu"}</label>
                   <input id="f-d" type="date" value={draft.d} onChange={(e) => set("d", e.target.value)} />
                 </div>
                 <div className={f("end", "s")}>
@@ -326,7 +343,7 @@ export function EditDialog({
               <fieldset className="status">
                 <legend>Tila</legend>
                 <div className="scards">
-                  {(["wait", "no", "int", "offer"] as Status[]).map((k) => {
+                  {(["todo", "wait", "no", "int", "offer"] as Status[]).map((k) => {
                     const gain = statusXp(k);
                     return (
                       <label key={k} className="scard">
@@ -423,7 +440,7 @@ function usePreview({ draft, app, apps, goal, today }: PreviewProps) {
     const next = normalize(id, { ...buildDoc(draft, app, "") }, today);
     const others = apps.filter((a) => a.id !== id);
     const before = gameState(apps, goal, today);
-    const after = gameState([...others, next], goal, today);
+    const after = gameState(next.status === "todo" ? others : [...others, next], goal, today);
     return { next, before, after, gain: after.xp - before.xp };
   }, [draft, app, apps, goal, today]);
 }
@@ -446,18 +463,21 @@ function Reward(p: PreviewProps) {
   const gainPct = Math.max(0, Math.min(100 - basePct, (gain / span) * 100));
   const parts = xpParts(next);
   const weekBonus = after.weeks.met - before.weeks.met;
-  const isNew = !p.app;
-  const thisWeek = isNew && weekKey(next.d) === weekKey(p.today);
+  const isNew = !p.app || p.app.status === "todo";
+  const todo = next.status === "todo";
+  const thisWeek = isNew && !todo && weekKey(next.d) === weekKey(p.today);
   const w = before.weeks;
   const segs = Math.min(p.goal, 10);
   const left = p.goal - w.thisWeek - 1;
-  const hint = !thisWeek
-    ? null
-    : left > 0
-      ? `Vielä ${left} ${left === 1 ? "hakemus" : "hakemusta"}, niin viikkotavoite täyttyy (+20 XP).`
-      : left === 0
-        ? `Tämä hakemus täyttää viikkotavoitteen${w.current ? ` ja jatkaa putken ${w.current + 1} viikkoon` : ""}.`
-        : "Viikkotavoite on jo täynnä. Hyvä tahti!";
+  const hint = todo
+    ? "Haettava ilmoitus ei vielä tuo XP:tä. Se tulee, kun merkitset hakemuksen haetuksi."
+    : !thisWeek
+      ? null
+      : left > 0
+        ? `Vielä ${left} ${left === 1 ? "hakemus" : "hakemusta"}, niin viikkotavoite täyttyy (+20 XP).`
+        : left === 0
+          ? `Tämä hakemus täyttää viikkotavoitteen${w.current ? ` ja jatkaa putken ${w.current + 1} viikkoon` : ""}.`
+          : "Viikkotavoite on jo täynnä. Hyvä tahti!";
   return (
     <aside className="reward" aria-labelledby="rewardH">
       <h3 id="rewardH">PALKKIO</h3>

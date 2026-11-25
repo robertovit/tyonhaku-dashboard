@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { connect } from "../lib/claude";
+import { connect } from "../lib/backend";
 import type { Application } from "../lib/model";
 import type { Backend } from "../lib/store";
 

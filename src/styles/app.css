@@ -25,6 +25,7 @@
   --st-wait: #d4c07a;
   --st-int: #93b1ba;
   --st-offer: #c8f169;
+  --st-todo: #c99a7e;
   --bar-muted: #6c8072;
   --empty: #27362d;
   --locked: #3d4d43;
@@ -58,6 +59,7 @@
     --st-wait: #d1ac2e;
     --st-int: #3f7f92;
     --st-offer: #5f9c14;
+    --st-todo: #a8673f;
     --bar-muted: #9aa89e;
     --empty: #e1e6dc;
     --locked: #b8c4ba;
@@ -89,6 +91,7 @@
   --st-wait: #d1ac2e;
   --st-int: #3f7f92;
   --st-offer: #5f9c14;
+  --st-todo: #a8673f;
   --bar-muted: #9aa89e;
   --empty: #e1e6dc;
   --locked: #b8c4ba;
@@ -1288,12 +1291,11 @@ fieldset.status legend {
   margin-bottom: 8px;
 }
 .scards {
-  display: flex;
-  flex-wrap: wrap;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(190px, 1fr));
   gap: 8px;
 }
 .scard {
-  flex: 1 1 130px;
   min-height: 48px;
   display: flex;
   align-items: center;
@@ -1594,4 +1596,61 @@ fieldset.status legend {
     animation: none !important;
     transition: none !important;
   }
+}
+
+/* ---------- Haettavat (saved ads) ---------- */
+.todos {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+}
+.todo {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 14px;
+  padding: 12px 0;
+  border-top: 1px solid var(--line-2);
+}
+.todo:first-child {
+  border-top: 0;
+  padding-top: 0;
+}
+.todo .what {
+  flex: 1 1 300px;
+  min-width: 0;
+}
+.todo .when {
+  display: block;
+  font-size: 14px;
+}
+.todo.past .what {
+  opacity: 0.7;
+}
+.q-days.urgent {
+  color: var(--accent-ink);
+}
+.todo-actions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.todo-actions .xp {
+  font-family: var(--font-pix);
+  color: var(--accent-ink);
+}
+footer .linkbtn {
+  min-height: 32px;
+  font-size: 14px;
+}
+.filebtn-inline {
+  position: relative;
+}
+.filebtn-inline input {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  opacity: 0;
 }

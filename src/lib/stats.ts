@@ -5,7 +5,7 @@ export const FOLLOWUP_DAYS = 21;
 export const SNOOZE_DAYS = 14;
 
 export function countBy(apps: Application[]): Record<Status, number> {
-  const c: Record<Status, number> = { offer: 0, int: 0, wait: 0, no: 0 };
+  const c: Record<Status, number> = { offer: 0, int: 0, wait: 0, no: 0, todo: 0 };
   apps.forEach((a) => c[a.status]++);
   return c;
 }
