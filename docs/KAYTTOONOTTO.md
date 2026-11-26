@@ -44,7 +44,7 @@ Tauluja ei tarvitse luoda itse. Sovellus luo ne ensimmäisellä käyttökerralla
    - **Destinations → Public hostnames:** lisää Pagesin osoite (Domain `<projektin-nimi>.pages.dev`, Subdomain tyhjä). Jos teit oman osoitteen, lisää samaan sovellukseen myös se (**Add public hostname**). Molemmat osoitteet käyttävät samaa AUD-tagia. Halutessasi lisää vielä rivi, jossa Subdomain on `*` ja Domain `<projektin-nimi>.pages.dev`. Silloin myös esikatseluosoitteet ovat kirjautumisen takana.
    - **Policy:** luo uusi. Anna nimi (esim. "Vain minä"), Action **Allow**, ehdoksi Include → **Emails** ja oma sähköpostiosoitteesi. Valitse **Policy session duration** -kohtaan pisin vaihtoehto (esim. 1 month), niin puhelimella ei tarvitse kirjautua joka päivä.
    - **Authentication:** oletus **Accept all available identity providers** riittää, sillä se sisältää **One-time PIN** -kirjautumisen (koodi tulee sähköpostiin). Jos laitat päälle **Apply instant authentication**, kirjautumistavan valinta jää väliin. Google-kirjautumisen voi lisätä myöhemmin.
-3. Kun sovellus on tallennettu, avaa se ja kopioi **Application Audience (AUD) Tag**.
+3. Kun sovellus on tallennettu, avaa se ja valitse **Additional settings → AUD tag**. Kopioi kohdan **Token** arvo (pitkä merkkijono). Älä paina **Revoke existing tokens**.
 4. Avaa Pages-projektin **Settings → Variables and Secrets** ja lisää tuotantoympäristöön kolme muuttujaa:
 
    | Nimi | Arvo |
