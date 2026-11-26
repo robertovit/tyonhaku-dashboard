@@ -43,17 +43,21 @@ Tauluja ei tarvitse luoda itse. Sovellus luo ne ensimmäisellä käyttökerralla
 2. Avaa **Access → Applications → Add an application → Self-hosted**.
    - **Destinations → Public hostnames:** lisää Pagesin osoite (Domain `<projektin-nimi>.pages.dev`, Subdomain tyhjä). Jos teit oman osoitteen, lisää samaan sovellukseen myös se (**Add public hostname**). Molemmat osoitteet käyttävät samaa AUD-tagia. Halutessasi lisää vielä rivi, jossa Subdomain on `*` ja Domain `<projektin-nimi>.pages.dev`. Silloin myös esikatseluosoitteet ovat kirjautumisen takana.
    - **Policy:** luo uusi. Anna nimi (esim. "Vain minä"), Action **Allow**, ehdoksi Include → **Emails** ja oma sähköpostiosoitteesi. Valitse **Policy session duration** -kohtaan pisin vaihtoehto (esim. 1 month), niin puhelimella ei tarvitse kirjautua joka päivä.
-   - **Authentication:** oletus **Accept all available identity providers** riittää, sillä se sisältää **One-time PIN** -kirjautumisen (koodi tulee sähköpostiin). Jos laitat päälle **Apply instant authentication**, kirjautumistavan valinta jää väliin. Google-kirjautumisen voi lisätä myöhemmin.
-3. Kun sovellus on tallennettu, avaa se ja valitse **Additional settings → AUD tag**. Kopioi kohdan **Token** arvo (pitkä merkkijono). Älä paina **Revoke existing tokens**.
-4. Avaa Pages-projektin **Settings → Variables and Secrets** ja lisää tuotantoympäristöön kolme muuttujaa:
+   - **Authentication:** jätä **Accept all available identity providers** päälle. Jos laitat päälle **Apply instant authentication**, kirjautumistavan valinta jää väliin, kun tapoja on vain yksi.
+3. Lisää sähköpostikoodi kirjautumistavaksi: **Settings → Authentication → Login methods → Add new → One-time PIN**. Uudella tilillä valmiina on usein vain tapa "Cloudflare", jolla kirjaudutaan Cloudflare-tilin tunnuksilla. Sekin toimii, mutta puhelimella sähköpostikoodi on helpompi. Google-kirjautumisen voi lisätä myöhemmin samasta paikasta.
+4. Kun sovellus on tallennettu, avaa se ja valitse **Additional settings → AUD tag**. Kopioi kohdan **Token** arvo (pitkä merkkijono). Älä paina **Revoke existing tokens**.
+5. Avaa Pages-projektin **Settings → Variables and Secrets** ja lisää tuotantoympäristöön kolme muuttujaa:
 
    | Nimi | Arvo |
    |---|---|
-   | `ACCESS_TEAM_DOMAIN` | `<tiimin-nimi>.cloudflareaccess.com` |
-   | `ACCESS_AUD` | AUD-tagi kohdasta 3 |
+   | `ACCESS_TEAM_DOMAIN` | `<tiimin-nimi>.cloudflareaccess.com` (tiimin nimi: Cloudflare One → **Settings → Team name**) |
+   | `ACCESS_AUD` | AUD-tagi kohdasta 4 |
    | `ALLOWED_EMAIL` | oma sähköpostiosoitteesi (useamman voi erottaa pilkulla) |
 
-5. Avaa **Deployments** ja valitse uusimmasta **Retry deployment**, jotta asetukset tulevat voimaan.
+   Muuttujien tyypiksi käy **Text**. Tarkista, ettei AUD-tagin perään jäänyt välilyöntiä tai rivinvaihtoa.
+6. Avaa **Deployments** ja valitse uusimmasta **Retry deployment**, jotta asetukset tulevat voimaan.
+
+Jos vaihdat tiimin nimen myöhemmin, päivitä `ACCESS_TEAM_DOMAIN`, tee Retry deployment ja kirjaudu uudelleen.
 
 Sovellus tarkistaa jokaisessa pyynnössä myös itse, että kirjautuminen on voimassa ja sähköposti on sallittu. Jos asetukset puuttuvat, sovellus ei näytä dataa kenellekään.
 
@@ -89,5 +93,6 @@ Ilmoitus näkyy Tänään-näkymän **Haettavat**-listassa. Lähestyvät määr�
 | "Tietokantaa ei ole liitetty" | D1-binding puuttuu tai sen nimi ei ole täsmälleen `DB` (vaihe 2). |
 | "Tällä tunnuksella ei ole pääsyä" | Kirjauduit eri sähköpostilla kuin `ALLOWED_EMAIL`. |
 | "Kirjautuminen on vanhentunut" | Access-istunto on päättynyt. Paina **Kirjaudu uudelleen**. |
+| Kirjautuminen onnistuu, mutta sovellus pyytää heti kirjautumaan uudelleen | `ACCESS_TEAM_DOMAIN` tai `ACCESS_AUD` on väärin, tai tiimin nimeä on vaihdettu kirjautumisen jälkeen. Tarkista arvot, tee Retry deployment, avaa `<osoite>/cdn-cgi/access/logout` ja kirjaudu uudelleen. |
 | Toinen osoite näyttää tyhjää tai kysyy kirjautumista uudelleen | Osoite puuttuu Access-sovelluksesta. Lisää se vaiheen 3 kohdassa Add public hostname. Kirjautuminen on osoitekohtainen, joten kummassakin osoitteessa kirjaudutaan erikseen. |
 | Työnhaku ei näy Jaa-valikossa | Sovellus pitää asentaa Chromen kautta (vaihe 5). Pelkkä kirjanmerkki ei riitä. |
