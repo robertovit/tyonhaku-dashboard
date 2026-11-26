@@ -292,6 +292,11 @@ export default function App() {
                 />
               </label>
             )}
+            {backend?.logoutUrl && (
+              <a className="linkbtn" href={backend.logoutUrl}>
+                Kirjaudu ulos
+              </a>
+            )}
           </footer>
         </main>
       </div>

@@ -22,7 +22,8 @@ Stack: React 19 + TypeScript + Vite, charts with visx (D3 scales/shapes), Vitest
 `src/lib/backend.ts` picks the implementation at build time:
 - `src/lib/web.ts` (production build): fetches `/api`, optimistic writes with rollback, reloads when the app
   becomes visible. An expired Access session shows "Kirjaudu uudelleen", which opens `/api/session`
-  (never served by the service worker) so Access can show its login.
+  (never served by the service worker) so Access can show its login. "Kirjaudu ulos" in the footer goes to
+  `/cdn-cgi/access/logout` (`Backend.logoutUrl`; the artifact has none).
 - `src/lib/claude.ts` (`--mode artifact` and `npm run dev`): `window.claude` db / user / sample / downloads.
 Components never touch `fetch` or `window.claude` directly.
 

@@ -58,4 +58,6 @@ export interface Backend {
   restore?: ((b: Backup) => Promise<void>) | null;
   /** Why there is no store, for the status line. */
   reason?: string;
+  /** Where "Kirjaudu ulos" leads; absent when the backend has no sign-in of its own. */
+  logoutUrl?: string;
 }

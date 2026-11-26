@@ -1645,6 +1645,10 @@ footer .linkbtn {
   min-height: 32px;
   font-size: 14px;
 }
+footer a.linkbtn {
+  display: inline-flex;
+  align-items: center;
+}
 .filebtn-inline {
   position: relative;
 }

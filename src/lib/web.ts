@@ -8,6 +8,8 @@ import { UserFacingError, type ApplicationStore, type Backend, type Downloads, t
 type Fetch = typeof fetch;
 /** Where to send the browser to log in again: an /api URL the service worker never answers from its cache. */
 export const LOGIN_URL = "/api/session";
+/** Cloudflare Access ends the session here (never served by the service worker). */
+export const LOGOUT_URL = "/cdn-cgi/access/logout";
 
 export const AUTH_MSG = "Kirjautuminen on vanhentunut. Kirjaudu uudelleen.";
 
@@ -148,5 +150,5 @@ export const blobDownloads: Downloads = {
 export async function connect(): Promise<Backend> {
   const store = webStore();
   // Claude fill needs an API key on the server; until then the add dialog is filled by hand.
-  return { store, assistant: null, downloads: blobDownloads, restore: (b) => store.restore(b) };
+  return { store, assistant: null, downloads: blobDownloads, restore: (b) => store.restore(b), logoutUrl: LOGOUT_URL };
 }
