@@ -119,14 +119,18 @@ export default function App() {
     history.replaceState(null, "", location.pathname + location.hash);
     setView("tanaan");
     void (async () => {
-      let found = { ...splitAdTitle(shared.title), notice: "" };
+      let found = { ...splitAdTitle(shared.title, shared.url), notice: "" };
       if (!shared.title && shared.url && adTitle) {
         show("Haetaan ilmoituksen tietoja…");
         const r = await adTitle(shared.url);
         if (r.role) found = { role: r.role, org: r.org, notice: "" };
-        else if (r.title) found = { ...splitAdTitle(r.title), notice: "" };
+        else if (r.title) found = { ...splitAdTitle(r.title, shared.url), notice: "" };
         else
-          found.notice = `Ilmoituksen tietoja ei saatu${r.reason ? ` (${r.reason})` : ""}. Linkki on tallessa, täytä muut kentät itse.`;
+          found.notice =
+            `Ilmoituksen tietoja ei saatu${r.reason ? ` (${r.reason})` : ""}. Linkki on tallessa, täytä muut kentät itse.` +
+            (/linkedin\.com/i.test(shared.url)
+              ? " Vinkki: avaa ilmoituksesta Hae työpaikkaa ja jaa se sivu, niin työnantaja ja tehtävä täyttyvät."
+              : "");
       }
       const { role, org, notice } = found;
       setEdit({ app: null, prefill: { status: "todo", d: today, url: shared.url, role, org }, notice });

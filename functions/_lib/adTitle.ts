@@ -65,11 +65,12 @@ export interface AdInfo {
 
 const LOGIN_WALL = /^\/(authwall|login|signup|uas\/login|checkpoint)/i;
 const wait = (ms: number) => new Promise((ok) => setTimeout(ok, ms));
-/** Pauses before each retry after "429 too many requests" (all within the 8 s budget). */
-const RETRY_WAITS = [500, 1000, 1500];
+/** Pauses before each retry after "429 too many requests". One is enough: from Cloudflare LinkedIn answers 429
+ *  nearly every time, and more retries only kept the add dialog waiting. */
+const RETRY_WAITS = [700];
 
 /** The start of an HTML page, or why it could not be read. Follows up to 3 redirects, each to a known site,
- *  and retries a few times after "429 too many requests". */
+ *  and retries once after "429 too many requests". */
 async function getPage(
   start: URL,
   fetcher: typeof fetch,
@@ -91,7 +92,6 @@ async function getPage(
       hop++;
       continue;
     }
-    // LinkedIn answers 429 at random (even to single requests), so a few spaced retries usually get through.
     if (r.status === 429 && tries < RETRY_WAITS.length) {
       await wait(RETRY_WAITS[tries++]);
       continue;

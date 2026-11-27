@@ -75,22 +75,22 @@ describe("ad lookup", () => {
     expect((await fetchAd(start, blocked.f)).reason).toBe("www.linkedin.com vastasi 403");
   });
 
-  it("retries LinkedIn's random 429s a few times", async () => {
+  it("retries a 429 once, then gives up without asking the page", async () => {
     vi.useFakeTimers();
     try {
       const start = allowedAdUrl("https://www.linkedin.com/jobs/view/4493123456/")!;
       const limited = () => new Response("", { status: 429 });
-      const lucky = via(limited(), limited(), page(GUEST));
+      const lucky = via(limited(), page(GUEST));
       const got = fetchAd(start, lucky.f);
       await vi.runAllTimersAsync();
       expect((await got).role).toBe("Data-analyytikko & kehittäjä");
-      expect(lucky.urls).toHaveLength(3);
+      expect(lucky.urls).toHaveLength(2);
 
-      const unlucky = via(limited(), limited(), limited(), limited(), page("<title>ei haeta</title>"));
+      const unlucky = via(limited(), limited(), page("<title>ei haeta</title>"));
       const none = fetchAd(start, unlucky.f);
       await vi.runAllTimersAsync();
       expect((await none).reason).toBe("www.linkedin.com vastasi 429");
-      expect(unlucky.urls).toHaveLength(4);
+      expect(unlucky.urls).toHaveLength(2);
     } finally {
       vi.useRealTimers();
     }

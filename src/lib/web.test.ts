@@ -15,6 +15,12 @@ describe("share target", () => {
       url: "https://esim.fi/y?a=1",
       title: "Katso tämä",
     });
+    expect(
+      parseShare(
+        "?title=Rooli&url=" +
+          encodeURIComponent("https://ura.esim.fi/p/1?utm_source=linkedin&utm_medium=job_post&id=5&utm_campaign=x"),
+      ),
+    ).toEqual({ url: "https://ura.esim.fi/p/1?id=5", title: "Rooli" });
     expect(parseShare("")).toBeNull();
     expect(parseShare("?view=loki")).toBeNull();
   });
@@ -32,6 +38,28 @@ describe("share target", () => {
       ["", "", ""],
     ];
     for (const [title, role, org] of cases) expect(splitAdTitle(title), title).toEqual({ role, org });
+  });
+
+  it("on an employer's own site, takes the part found in the address as the employer", () => {
+    const cases: [string, string, string, string][] = [
+      [
+        "UX/UI designer | Esimerkkiyhtiö",
+        "https://jobs.esimerkkiyhtio.com/positions/6686d0e2a65c",
+        "UX/UI designer",
+        "Esimerkkiyhtiö",
+      ],
+      ["Peliyhtiö - Senior Designer", "https://jobs.lever.co/peliyhtio/4b1c-77", "Senior Designer", "Peliyhtiö"],
+      [
+        "Data Analyst – Mittakaava Oy",
+        "https://ura.mittakaava.fi/jobs/123-data-analyst",
+        "Data Analyst",
+        "Mittakaava Oy",
+      ],
+      ["Kehittäjä - Tampere - Yritys Oy", "https://yritys.fi/x", "Kehittäjä", "Yritys Oy"],
+      ["Kehittäjä - Tampere - Yritys Oy", "https://muu.fi/x", "Kehittäjä - Tampere - Yritys Oy", ""],
+      ["Job Application for Product Designer at Esimerkki", "", "Product Designer", "Esimerkki"],
+    ];
+    for (const [title, url, role, org] of cases) expect(splitAdTitle(title, url), title).toEqual({ role, org });
   });
 
   it("asks the server for a bare link's title and never throws", async () => {
