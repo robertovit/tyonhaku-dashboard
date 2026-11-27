@@ -5,6 +5,7 @@ import { isoWeek } from "./dates";
 import { asOf, hadInterview, hadOffer, hadRejection, recordStatus } from "./history";
 import { weeklySeries } from "./stats";
 import type { Application, StageEvent, Status } from "./model";
+import { newlyUnlockedPost, unlockedTitle, type PostItem } from "./post";
 import { newlyUnlockedShield, type Shield } from "./shields";
 
 export const XP_RULES = {
@@ -120,12 +121,17 @@ export interface Badge {
   how: string;
   earned: (g: Omit<GameState, "badges" | "xp" | "level">) => boolean;
 }
-/** Application count milestones: the first four badges, shown in Varusteet with their own pixel items. */
+/**
+ * Application count milestones (sent applications, each once). Each opens a post item (lib/post.ts), shown in
+ * Varusteet as the post series.
+ */
 export const APP_MILESTONES = [
   { id: "first", required: 1, name: "Ensimmäinen hakemus", how: "Lähetä ensimmäinen hakemus" },
   { id: "ten", required: 10, name: "Kymmenen hakemusta", how: "Lähetä 10 hakemusta" },
   { id: "quarter", required: 25, name: "25 hakemusta", how: "Lähetä 25 hakemusta" },
   { id: "fifty", required: 50, name: "Puolisataa", how: "Lähetä 50 hakemusta" },
+  { id: "hundred", required: 100, name: "Sata hakemusta", how: "Lähetä 100 hakemusta" },
+  { id: "twohundred", required: 200, name: "Kaksisataa hakemusta", how: "Lähetä 200 hakemusta" },
 ] as const;
 export type Milestone = (typeof APP_MILESTONES)[number];
 
@@ -285,6 +291,8 @@ export interface Celebration {
   newBadges: string[];
   /** A shield this save unlocked. */
   shield?: Shield;
+  /** A post item this save unlocked (more sent applications). */
+  post?: PostItem;
 }
 /**
  * What to celebrate after a save changed the game state; null when nothing was gained. `saved` names what was
@@ -293,7 +301,8 @@ export interface Celebration {
 export function celebrationFor(before: GameState, after: GameState, saved = ""): Celebration | null {
   const gained = after.xp - before.xp;
   const shield = newlyUnlockedShield(before.no, after.no);
-  if (gained <= 0 && !shield) return null;
+  const post = shield ? undefined : newlyUnlockedPost(before.total, after.total);
+  if (gained <= 0 && !shield && !post) return null;
   const newBadges = COLLECTION_BADGES.filter((b) => after.badges.includes(b.id) && !before.badges.includes(b.id));
   const lines: string[] = [];
   let big = false;
@@ -301,8 +310,9 @@ export function celebrationFor(before: GameState, after: GameState, saved = ""):
     lines.push(`Taso ${after.level.n}: ${after.level.name}! Uusi varuste: ${avatarItem(after.level.n)}`);
     big = true;
   }
+  // the milestone behind a new post item is said by the item's own title
   newBadges.forEach((b) => {
-    lines.push(`Uusi saavutus: ${b.name}`);
+    if (b.id !== post?.milestone) lines.push(`Uusi saavutus: ${b.name}`);
     big = true;
   });
   if (after.weeks.met > before.weeks.met) {
@@ -319,11 +329,12 @@ export function celebrationFor(before: GameState, after: GameState, saved = ""):
   if (rejection && !big && !shield) lines.push("Ei-valinta käsitelty. Jokainen haku vie eteenpäin.");
   const xp = gained > 0 ? `+${gained} XP` : "";
   return {
-    title: shield ? `${shield.name} avattu` : [saved, xp].filter(Boolean).join(" · "),
-    text: (shield ? [saved, xp, ...lines] : lines).filter(Boolean).join(" · "),
+    title: shield ? `${shield.name} avattu` : post ? unlockedTitle(post) : [saved, xp].filter(Boolean).join(" · "),
+    text: (shield || post ? [saved, xp, ...lines] : lines).filter(Boolean).join(" · "),
     confetti: rejection || !big ? 0 : interview || after.level.n > before.level.n ? 160 : 90,
     newBadges: newBadges.map((b) => b.id),
     shield,
+    post,
   };
 }
 

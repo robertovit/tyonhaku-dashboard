@@ -1,8 +1,11 @@
 // 16×16 pixel character (Havu design, level 5 drawn there). It gains an item per level:
 // 1 magnifier, 2 pen, 3 laptop, 4 suit and tie, 5 name badge, 6 glasses, 7 crown, 8+ golden glow.
-// A shield earned from rejections (lib/shields.ts) can be worn on the left arm, in front of everything else.
+// A shield earned from rejections (lib/shields.ts) can be worn on the left arm, in front of everything else, and
+// a post item earned from sent applications (lib/post.ts) carried in the right hand.
 // Colors are fixed so the character looks the same in both themes.
+import type { PostItemId } from "../lib/post";
 import type { ShieldId } from "../lib/shields";
+import { PostPixels } from "./Post";
 import { ShieldPixels } from "./Shield";
 
 type Px = [x: number, y: number, w: number, h: number, fill: string, opacity?: number];
@@ -18,7 +21,7 @@ const LIME = "#C8F169";
 const GOLD = "#E8C547";
 const GOLD_DARK = "#B8902A";
 
-export function Avatar({ level, shield }: { level: number; shield?: ShieldId }) {
+export function Avatar({ level, shield, post }: { level: number; shield?: ShieldId; post?: PostItemId }) {
   const n = Math.max(1, level);
   const suit = n >= 4;
   const body = n >= 8 ? GOLD_DARK : suit ? "#44634B" : "#6C8FA0";
@@ -79,6 +82,7 @@ export function Avatar({ level, shield }: { level: number; shield?: ShieldId }) 
       {px.map(([x, y, w, h, fill, opacity], i) => (
         <rect key={i} x={x} y={y} width={w} height={h} fill={fill} opacity={opacity} />
       ))}
+      {post && <PostPixels id={post} />}
       {shield && <ShieldPixels id={shield} x={0} y={7} />}
     </svg>
   );
