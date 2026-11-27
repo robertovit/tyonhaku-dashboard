@@ -5,6 +5,7 @@ import { isoWeek } from "./dates";
 import { asOf, hadInterview, hadOffer, hadRejection, recordStatus } from "./history";
 import { weeklySeries } from "./stats";
 import type { Application, StageEvent, Status } from "./model";
+import { newlyUnlockedShield, type Shield } from "./shields";
 
 export const XP_RULES = {
   application: 10,
@@ -178,6 +179,15 @@ export const BADGES: Badge[] = [
   { id: "offer", icon: "€", name: "Tarjous", how: "Saa työtarjous", earned: (g) => g.offers >= 1 },
 ];
 
+/**
+ * What the Esineet panel collects: effort badges. The shields (lib/shields.ts) take the place of "persist", and
+ * outcome badges (interview, top, offer) are only shown under "Aiemmin ansaitut" once earned; a new interview or
+ * offer shows as XP and in the application's history instead. All of them stay in GameState.badges.
+ */
+const ARCHIVED = ["interview", "top", "offer"];
+export const COLLECTION_BADGES = BADGES.filter((b) => b.id !== "persist" && !ARCHIVED.includes(b.id));
+export const ARCHIVED_BADGES = BADGES.filter((b) => ARCHIVED.includes(b.id));
+
 export function gameState(apps: Application[], goal: number, today: string): GameState {
   const perDay = new Map<string, number>();
   apps.forEach((a) => perDay.set(a.d, (perDay.get(a.d) ?? 0) + 1));
@@ -253,21 +263,25 @@ export interface Celebration {
   title: string;
   text: string;
   confetti: 0 | 90 | 160;
+  /** New badges of the active collection. */
   newBadges: string[];
+  /** A shield this save unlocked. */
+  shield?: Shield;
 }
 /** What to celebrate after a save changed the game state; null when nothing was gained. */
 export function celebrationFor(before: GameState, after: GameState): Celebration | null {
   const gained = after.xp - before.xp;
-  if (gained <= 0) return null;
-  const newBadges = after.badges.filter((b) => !before.badges.includes(b));
+  const shield = newlyUnlockedShield(before.no, after.no);
+  if (gained <= 0 && !shield) return null;
+  const newBadges = COLLECTION_BADGES.filter((b) => after.badges.includes(b.id) && !before.badges.includes(b.id));
   const lines: string[] = [];
   let big = false;
   if (after.level.n > before.level.n) {
     lines.push(`Taso ${after.level.n}: ${after.level.name}! Uusi varuste: ${avatarItem(after.level.n)}`);
     big = true;
   }
-  newBadges.forEach((id) => {
-    lines.push(`Uusi saavutus: ${BADGES.find((b) => b.id === id)!.name}`);
+  newBadges.forEach((b) => {
+    lines.push(`Uusi saavutus: ${b.name}`);
     big = true;
   });
   if (after.weeks.met > before.weeks.met) {
@@ -279,11 +293,39 @@ export function celebrationFor(before: GameState, after: GameState): Celebration
     lines.push("Haastattelu! Hienoa työtä.");
     big = true;
   }
-  if (after.no > before.no && !big) lines.push("Ei-valinta käsitelty. Jokainen haku vie eteenpäin.");
+  // A rejection is met calmly: no confetti, whatever else the same save brought.
+  const rejection = after.no > before.no;
+  if (rejection && !big && !shield) lines.push("Ei-valinta käsitelty. Jokainen haku vie eteenpäin.");
+  const xp = gained > 0 ? `+${gained} XP` : "";
   return {
-    title: `+${gained} XP`,
-    text: lines.join(" · "),
-    confetti: !big ? 0 : interview || after.level.n > before.level.n ? 160 : 90,
-    newBadges,
+    title: shield ? `${shield.name} avattu` : xp,
+    text: (shield ? [xp, ...lines] : lines).filter(Boolean).join(" · "),
+    confetti: rejection || !big ? 0 : interview || after.level.n > before.level.n ? 160 : 90,
+    newBadges: newBadges.map((b) => b.id),
+    shield,
+  };
+}
+
+export const ARM_WINDOW_MS = 8000;
+/**
+ * Celebrates only changes the viewer caused: arm() right before a save; the next confirmed game state (no write
+ * pending) within a few seconds is compared with the last confirmed one. A failed save is rolled back before it
+ * is confirmed, so it celebrates nothing; earlier data seen on the first load is never celebrated.
+ */
+export function celebrationWatch(now: () => number = Date.now) {
+  let prev: GameState | null = null;
+  let armedAt = 0;
+  return {
+    arm() {
+      armedAt = now();
+    },
+    see(game: GameState, pending: boolean): Celebration | null {
+      if (pending) return null;
+      const before = prev;
+      prev = game;
+      if (!before || !armedAt || now() - armedAt > ARM_WINDOW_MS) return null;
+      armedAt = 0;
+      return celebrationFor(before, game);
+    },
   };
 }

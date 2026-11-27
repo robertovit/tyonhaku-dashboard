@@ -1,9 +1,11 @@
 import { useEffect, useRef, useState } from "react";
 import { fmtDate } from "../lib/dates";
-import { avatarItem, BADGES, statusGain, XP_RULES, type GameState } from "../lib/game";
+import { ARCHIVED_BADGES, avatarItem, COLLECTION_BADGES, statusGain, XP_RULES, type GameState } from "../lib/game";
 import type { Application } from "../lib/model";
+import { rejectionsText, SHIELDS, type Shield, type ShieldId } from "../lib/shields";
 import type { Followup, WeekBucket } from "../lib/stats";
 import { Avatar } from "./Avatar";
+import { ShieldIcon } from "./Shield";
 import { WeeklyChart } from "./charts/WeeklyChart";
 
 /** Character sheet: avatar, level, XP / week / streak meters, and what the next level brings. */
@@ -13,12 +15,14 @@ export function PlayerPanel({
   avgXp,
   canWrite,
   onGoal,
+  shield,
 }: {
   game: GameState;
   goal: number;
   avgXp: number;
   canWrite: boolean;
   onGoal: (n: number) => Promise<void>;
+  shield: Shield | undefined;
 }) {
   const L = game.level;
   const pct = Math.min(100, ((game.xp - L.from) / (L.to - L.from)) * 100);
@@ -38,9 +42,9 @@ export function PlayerPanel({
         className={`av-box${bump ? " up" : ""}`}
         key={bump}
         role="img"
-        aria-label={`Hahmo tasolla ${L.n}: ${avatarItem(L.n)}`}
+        aria-label={`Hahmo tasolla ${L.n}: ${avatarItem(L.n)}${shield ? `, ${shield.name.toLowerCase()}` : ""}`}
       >
-        <Avatar level={L.n} />
+        <Avatar level={L.n} shield={shield?.id} />
       </div>
       <div className="player-main">
         <div className="player-title">
@@ -275,46 +279,98 @@ export function QuestPanel({
 }
 
 /** Badges as inventory items; selecting one shows what it is and when it was earned. */
+/**
+ * Esineet: the shields earned from rejections (wearable), the effort badges, and the outcome badges already
+ * earned under "Aiemmin ansaitut".
+ */
 export function ItemsPanel({
   game,
   fresh,
+  freshShield,
   weeks,
+  shield,
+  onEquip,
 }: {
   game: GameState;
   fresh: string[];
+  freshShield: ShieldId | undefined;
   weeks: Record<string, number>;
+  shield: Shield | undefined;
+  onEquip: (id: ShieldId | null) => void;
 }) {
-  const latest = [...game.badges].sort((a, b) => (weeks[b] ?? 0) - (weeks[a] ?? 0))[0];
+  const earned = COLLECTION_BADGES.filter((b) => game.badges.includes(b.id));
+  const archived = ARCHIVED_BADGES.filter((b) => game.badges.includes(b.id));
+  const latest = [...earned].sort((a, b) => (weeks[b.id] ?? 0) - (weeks[a.id] ?? 0))[0]?.id;
   const [picked, setPicked] = useState<string | null>(null);
-  const selId = picked ?? fresh[0] ?? latest ?? BADGES[0].id;
-  const sel = BADGES.find((b) => b.id === selId)!;
+  const selId = picked ?? fresh[0] ?? latest ?? COLLECTION_BADGES[0].id;
+  const sel = [...COLLECTION_BADGES, ...archived].find((b) => b.id === selId) ?? COLLECTION_BADGES[0];
   const selOn = game.badges.includes(sel.id);
+  const item = (b: (typeof COLLECTION_BADGES)[number]) => {
+    const on = game.badges.includes(b.id);
+    return (
+      <button
+        type="button"
+        key={b.id}
+        className={`item${on ? " on" : ""}${fresh.includes(b.id) ? " new" : ""}`}
+        aria-pressed={b.id === sel.id}
+        aria-label={`${b.name}, ${on ? "ansaittu" : "lukittu"}`}
+        title={b.name}
+        onClick={() => setPicked(b.id)}
+      >
+        {b.icon}
+      </button>
+    );
+  };
   return (
     <section className="frame" aria-labelledby="itemsH">
       <div className="ph">
         <h2 id="itemsH">Esineet</h2>
         <span className="pix sub" style={{ fontSize: 18 }}>
-          {game.badges.length} / {BADGES.length}
+          {earned.length} / {COLLECTION_BADGES.length}
         </span>
       </div>
-      <div className="items">
-        {BADGES.map((b) => {
-          const on = game.badges.includes(b.id);
-          return (
-            <button
-              type="button"
-              key={b.id}
-              className={`item${on ? " on" : ""}${fresh.includes(b.id) ? " new" : ""}`}
-              aria-pressed={b.id === sel.id}
-              aria-label={`${b.name}, ${on ? "ansaittu" : "lukittu"}`}
-              title={b.name}
-              onClick={() => setPicked(b.id)}
-            >
-              {b.icon}
-            </button>
-          );
-        })}
+      <div className="shields" role="group" aria-labelledby="shieldsH">
+        <div className="shields-head">
+          <span className="k" id="shieldsH">
+            KILVET
+          </span>
+          <span className="sub">{rejectionsText(game.no)} kirjattu</span>
+        </div>
+        <ul>
+          {SHIELDS.map((s) => {
+            const open = game.no >= s.required;
+            const worn = shield?.id === s.id;
+            return (
+              <li key={s.id} className={`${open ? "on" : "locked"}${s.id === freshShield ? " new" : ""}`}>
+                <span className="shield-icon">
+                  <ShieldIcon id={s.id} />
+                </span>
+                <span className="shield-text">
+                  <span className="name">{s.name}</span>
+                  <span className="sub">
+                    {worn
+                      ? "Hahmolla"
+                      : open
+                        ? `Avattu: ${rejectionsText(s.required)}`
+                        : `Avautuu: ${rejectionsText(s.required)} (${game.no} / ${s.required})`}
+                  </span>
+                </span>
+                {open && (
+                  <button
+                    type="button"
+                    className={`btn${worn ? "" : " sel"}`}
+                    aria-label={`${worn ? "Poista käytöstä" : "Ota käyttöön"}: ${s.name}`}
+                    onClick={() => onEquip(worn ? null : s.id)}
+                  >
+                    {worn ? "Poista käytöstä" : "Ota käyttöön"}
+                  </button>
+                )}
+              </li>
+            );
+          })}
+        </ul>
       </div>
+      <div className="items">{COLLECTION_BADGES.map(item)}</div>
       <div className="item-detail" aria-live="polite">
         <span className={`name${selOn ? " on" : ""}`}>{sel.name}</span>
         <span>{sel.how}.</span>
@@ -322,6 +378,14 @@ export function ItemsPanel({
           {selOn ? (weeks[sel.id] ? `Ansaittu vko ${weeks[sel.id]}` : "Ansaittu") : "Lukittu"}
         </span>
       </div>
+      {archived.length > 0 && (
+        <div className="archived" role="group" aria-labelledby="archivedH">
+          <span className="k" id="archivedH">
+            AIEMMIN ANSAITUT
+          </span>
+          <div className="items">{archived.map(item)}</div>
+        </div>
+      )}
     </section>
   );
 }

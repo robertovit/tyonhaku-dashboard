@@ -11,7 +11,7 @@ Kuvakaappauksen ja demon hakemukset ovat keksittyä esimerkkidataa. Omat hakemuk
 ## Mitä se tekee
 
 - **Tänään-näkymä:** hahmo, jonka varusteet kasvavat tason mukana, sekä XP-, viikkotavoite- ja putkimittarit. Tehtävät-listassa ovat hakemukset, joista ei ole kuulunut yli kolmeen viikkoon. Niille on pikatoiminnot: kuittaa ei valituksi, muistuta myöhemmin tai muokkaa.
-- **Esineet:** 14 saavutusta. Valitusta näkee, miten sen saa ja miltä viikolta se on ansaittu.
+- **Esineet:** kolme kilpeä, jotka avautuvat kirjatuista hylkäyksistä (1, 5 ja 10) ja jotka voi pukea hahmolle, sekä hakemisesta ansaittavat saavutukset. Valitusta näkee, miten sen saa ja miltä viikolta se on ansaittu. Haastattelu-, sijoitus- ja tarjousmerkit näkyvät ansaittuina kohdassa Aiemmin ansaitut.
 - **Tilastot:** lopputulokset, suppilo hausta tarjoukseen, tehtävätyypit, työnantajat ja hakijamäärät.
 - **Hakuloki:** kaikki hakemukset tilan mukaan suodatettavina, ja jokaisen hakemuksen XP. Rivin **Historia** näyttää, milloin hakemus lähti ja milloin se eteni (esim. haastattelu, sitten ei valittu). Väärän merkinnän voi korjata muokkausikkunan kohdasta **Korjaa historiaa**.
 - **Haettavat:** kiinnostavan ilmoituksen voi ottaa talteen ennen kuin hakee. Lista järjestyy määräajan mukaan, ja **Merkitse haetuksi** tuo XP:t.

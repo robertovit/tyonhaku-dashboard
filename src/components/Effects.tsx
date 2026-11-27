@@ -1,14 +1,30 @@
 import { useEffect, useRef } from "react";
 import type { ToastMsg } from "../hooks/useToast";
+import type { Shield } from "../lib/shields";
+import { ShieldIcon } from "./Shield";
 
-export function Toast({ toast }: { toast: ToastMsg | null }) {
+/** Bottom message. A newly unlocked shield comes with its picture and "Ota käyttöön". */
+export function Toast({ toast, onEquip }: { toast: ToastMsg | null; onEquip: (shield: Shield) => void }) {
+  const shield = toast?.shield;
   return (
-    <div className="toast" role="status" aria-live="polite" hidden={!toast}>
-      {toast && (
-        <>
-          <b>{toast.title}</b>
-          {toast.text && <span>{toast.text}</span>}
-        </>
+    <div className={`toast${shield ? " with-shield" : ""}`} hidden={!toast}>
+      {shield && (
+        <span className="shield-icon">
+          <ShieldIcon id={shield.id} />
+        </span>
+      )}
+      <div className="toast-msg" role="status" aria-live="polite">
+        {toast && (
+          <>
+            <b>{toast.title}</b>
+            {toast.text && <span>{toast.text}</span>}
+          </>
+        )}
+      </div>
+      {shield && (
+        <button type="button" className="btn sel" onClick={() => onEquip(shield)}>
+          Ota käyttöön
+        </button>
       )}
     </div>
   );
