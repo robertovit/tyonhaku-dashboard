@@ -350,9 +350,6 @@ footer {
   color: var(--muted);
   font-size: 16px;
 }
-.cmd.add {
-  color: var(--accent-ink);
-}
 .cmd-sep {
   height: 2px;
   background: var(--line);
@@ -360,6 +357,32 @@ footer {
 }
 .cmd .short {
   display: none;
+}
+.pxicon {
+  width: 18px;
+  height: 18px;
+  flex: none;
+  display: block;
+}
+.cmd .pxicon {
+  color: var(--muted);
+}
+.cmd[aria-selected="true"] .pxicon,
+.cmd:hover .pxicon {
+  color: var(--accent-ink);
+}
+.cmd.add {
+  background: var(--accent);
+  color: var(--on-accent);
+  padding-left: 14px;
+}
+.cmd.add:hover {
+  background: var(--accent-2);
+}
+.cmd.add .pxicon {
+  color: var(--on-accent);
+  width: 14px;
+  height: 14px;
 }
 
 /* ---------- controls ---------- */
@@ -659,29 +682,79 @@ input[type="radio"] {
 }
 
 /* ---------- Tänään: quests ---------- */
-.quests {
+/* ---------- Tänään: character's shield line ---------- */
+.gear-line {
+  margin: 0;
   display: flex;
   flex-wrap: wrap;
-  gap: 20px;
-  align-items: flex-start;
+  align-items: baseline;
+  gap: 2px 12px;
 }
+.gear-line .k {
+  font-family: var(--font-pix);
+  color: var(--muted);
+  font-size: 15px;
+}
+.gear-name {
+  font-family: var(--font-pix);
+  color: var(--accent-ink);
+}
+.gear-link {
+  min-height: 32px;
+  display: inline-flex;
+  align-items: center;
+}
+
+/* ---------- Tänään: deadline and waiting chips ---------- */
+.when-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 15px;
+  white-space: nowrap;
+}
+.when-chip .pxicon {
+  width: 16px;
+  height: 16px;
+}
+.when-chip.wait {
+  color: var(--warm-ink);
+}
+.when-chip.deadline.urgent {
+  color: var(--accent-ink);
+  font-weight: 700;
+}
+.when-chip.deadline.past,
+.when-chip.deadline.none,
+.when-chip .date {
+  color: var(--muted);
+  font-weight: 400;
+}
+
+/* ---------- Tänään: quests ---------- */
 .q-list {
-  flex: 999 1 420px;
-  min-width: 0;
+  list-style: none;
+  margin: 0;
+  padding: 0;
   display: flex;
   flex-direction: column;
   gap: 4px;
 }
+.q-list li.open {
+  background: var(--sel);
+  border-radius: 6px;
+}
 .q-item {
-  min-height: 56px;
+  min-height: 52px;
   padding: 8px 14px 8px 40px;
   background: transparent;
   color: var(--ink);
   border: 0;
   border-radius: 6px;
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
-  gap: 12px;
+  gap: 2px 12px;
   width: 100%;
   text-align: left;
   position: relative;
@@ -689,45 +762,51 @@ input[type="radio"] {
 .q-item:hover {
   background: var(--sel);
 }
-.q-item[aria-pressed="true"] {
-  background: var(--sel);
-  color: var(--ink-strong);
-}
-.q-item[aria-pressed="true"]::before {
+.q-item::before {
   content: "▶";
   position: absolute;
   left: 14px;
-  color: var(--accent-ink);
+  top: 14px;
+  color: var(--muted);
   font-family: var(--font-pix);
+  font-size: 14px;
+}
+.q-item[aria-expanded="true"] {
+  color: var(--ink-strong);
+}
+.q-item[aria-expanded="true"]::before {
+  content: "▼";
+  color: var(--accent-ink);
 }
 .q-item .what {
-  flex: 1;
+  flex: 1 1 240px;
   min-width: 0;
 }
-.q-days {
-  font-family: var(--font-pix);
-  font-size: 20px;
-  color: var(--warm-ink);
-  white-space: nowrap;
-}
-.q-side {
-  flex: 1 1 280px;
-  min-width: 0;
-  background: var(--inset);
-  border: 2px solid var(--frame);
-  border-radius: 8px;
-  padding: 14px;
+.q-detail {
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: 8px;
+  padding: 0 14px 14px 40px;
+  font-size: 15px;
 }
-.q-side .meta {
-  font-size: 14px;
-  color: var(--muted);
-  padding: 0 6px 6px;
+.q-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
 }
-.q-inline {
-  display: none;
+.q-actions .xp {
+  font-family: var(--font-pix);
+  color: var(--accent-ink);
+}
+.frame > .more {
+  margin-top: 12px;
+}
+h2[tabindex="-1"]:focus {
+  outline: none;
+}
+h2[tabindex="-1"]:focus-visible {
+  outline: 2px solid var(--accent-ink);
+  outline-offset: 4px;
 }
 .snoozed {
   font-size: 14px;
@@ -735,48 +814,7 @@ input[type="radio"] {
   margin: 12px 0 0;
 }
 
-/* ---------- Tänään: items (shields and badges) ---------- */
-.shields {
-  margin-bottom: 14px;
-}
-.shields-head,
-.archived > .k {
-  display: flex;
-  justify-content: space-between;
-  align-items: baseline;
-  gap: 8px;
-  margin-bottom: 8px;
-}
-.shields .k,
-.archived .k {
-  font-family: var(--font-pix);
-  color: var(--muted);
-}
-.shields ul {
-  list-style: none;
-  margin: 0;
-  padding: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-}
-.shields li {
-  display: grid;
-  grid-template-columns: 52px minmax(0, 1fr) auto;
-  align-items: center;
-  gap: 12px;
-  padding: 6px 8px;
-  background: var(--inset);
-  border: 2px solid var(--line);
-  border-radius: 6px;
-}
-.shields li.locked {
-  background: transparent;
-  border: 2px dashed var(--locked);
-}
-.shields li.new {
-  animation: pop 0.6s steps(4) 3;
-}
+/* ---------- Varusteet: shields ---------- */
 .shield-icon {
   width: 52px;
   height: 52px;
@@ -789,32 +827,299 @@ input[type="radio"] {
   width: 28px;
   height: 36px;
 }
-.locked .shield-icon svg {
-  filter: grayscale(1) brightness(0.7);
-  opacity: 0.5;
+.armory {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 20px 28px;
+  align-items: flex-start;
 }
-.shield-text {
+.preview {
+  flex: 0 0 auto;
   display: flex;
   flex-direction: column;
-  min-width: 0;
+  gap: 10px;
+  width: 160px;
 }
-.shield-text .name {
+.preview .av-box {
+  width: 160px;
+  height: 160px;
+  flex-basis: auto;
+}
+.preview .av-box svg {
+  width: 144px;
+  height: 144px;
+}
+.preview-text {
+  margin: 0;
+  display: grid;
+  gap: 0;
+  font-size: 15px;
+}
+.preview-text dt {
   font-family: var(--font-pix);
-  font-size: 18px;
+  color: var(--muted);
+  font-size: 13px;
 }
-.shields li.on .name {
+.preview-text dd {
+  margin: 0 0 6px;
+  font-family: var(--font-pix);
+}
+.armory-main {
+  flex: 1 1 420px;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+.shield-cards {
+  border: 0;
+  margin: 0;
+  padding: 0;
+  min-width: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+.shield-card {
+  flex: 1 1 150px;
+  min-width: 0;
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  padding: 14px 10px 12px;
+  text-align: center;
+  background: var(--inset);
+  border: 2px solid var(--line);
+  border-radius: 8px;
+  cursor: pointer;
+}
+.shield-card.locked {
+  background: transparent;
+  border-style: dashed;
+  border-color: var(--locked);
+}
+.shield-card:hover {
+  border-color: var(--ink);
+}
+.shield-card:has(input:checked) {
+  border: 3px solid var(--accent-ink);
+  padding: 13px 9px 11px;
+  background: var(--sel);
+}
+.shield-card:has(input:focus-visible) {
+  outline: 2px solid var(--accent-ink);
+  outline-offset: 3px;
+}
+.shield-card input {
+  position: absolute;
+  opacity: 0;
+  width: 1px;
+  height: 1px;
+}
+.shield-card.new {
+  animation: pop 0.6s steps(4) 3;
+}
+.shield-art {
+  width: 84px;
+  height: 96px;
+  display: grid;
+  place-items: center;
+  background: var(--av-bg);
+  border-radius: 6px;
+  margin-bottom: 4px;
+}
+.shield-art svg {
+  width: 56px;
+  height: 72px;
+}
+.shield-card.locked .shield-art svg {
+  filter: grayscale(1) brightness(0.75);
+  opacity: 0.55;
+}
+.shield-card .name {
+  font-family: var(--font-pix);
+  font-size: 17px;
+  line-height: 1.25;
+}
+.shield-card .state {
+  display: inline-flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  align-items: center;
+  gap: 0 6px;
+  font-size: 14px;
+  color: var(--muted);
+}
+.shield-card.worn .state {
+  color: var(--accent-ink);
+  font-weight: 700;
+}
+.shield-card .state .pxicon {
+  width: 12px;
+  height: 12px;
+}
+.shield-card .progress {
+  font-family: var(--font-pix);
+  font-size: 14px;
+}
+.shield-card .picked {
+  font-family: var(--font-pix);
+  font-size: 13px;
   color: var(--accent-ink);
 }
-.shields li .btn {
-  min-height: 40px;
-  padding: 0 12px;
+.armory-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
 }
-.archived {
+.armory-hint {
+  font-size: 14px;
+}
+
+/* ---------- Varusteet: application milestones ---------- */
+.ms-meter {
+  margin: -4px 0 16px;
+}
+.milestones {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 12px;
+}
+.milestones li {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  text-align: center;
+  padding: 12px 8px;
+  background: var(--inset);
+  border: 2px solid var(--line);
+  border-radius: 8px;
+}
+.milestones li.locked {
+  background: transparent;
+  border-style: dashed;
+  border-color: var(--locked);
+}
+.milestones li.new {
+  animation: pop 0.6s steps(4) 3;
+}
+.ms-art {
+  position: relative;
+  width: 84px;
+  height: 72px;
+  display: grid;
+  place-items: center;
+  background: var(--av-bg);
+  border-radius: 6px;
+  margin-bottom: 4px;
+}
+.ms-sprite {
+  width: 48px;
+  height: auto;
+}
+.locked .ms-sprite {
+  filter: grayscale(1) brightness(0.75);
+  opacity: 0.55;
+}
+.ms-goal {
+  position: absolute;
+  right: 4px;
+  bottom: 2px;
+  font-size: 13px;
+  color: #eef0e8;
+}
+.milestones .name {
+  font-family: var(--font-pix);
+  font-size: 16px;
+  line-height: 1.25;
+}
+.milestones .state {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  color: var(--muted);
+}
+.milestones li.on .state {
+  color: var(--accent-ink);
+}
+.milestones .state .pxicon,
+.item-detail .when .pxicon {
+  width: 12px;
+  height: 12px;
+  display: inline-block;
+  vertical-align: -1px;
+}
+
+/* ---------- Varusteet: earlier badges ---------- */
+.earlier {
   margin-top: 14px;
+  border-top: 2px solid var(--line);
+  padding-top: 8px;
 }
-.archived > .k {
-  display: block;
+.earlier summary {
+  font-family: var(--font-pix);
+  font-size: 17px;
+  cursor: pointer;
+  list-style: none;
+  min-height: 44px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
 }
+.earlier summary::-webkit-details-marker {
+  display: none;
+}
+.earlier summary::before {
+  content: "▶";
+  color: var(--accent-ink);
+}
+.earlier[open] summary::before {
+  content: "▼";
+}
+.earlier ul {
+  list-style: none;
+  margin: 4px 0 10px;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.earlier li {
+  display: grid;
+  grid-template-columns: 52px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 12px;
+}
+.earlier li .item {
+  width: 52px;
+  height: 52px;
+}
+.earlier li .name {
+  font-family: var(--font-pix);
+}
+.earlier p {
+  font-size: 14px;
+  margin: 4px 0;
+}
+
+/* ---------- Hakuloki tools ---------- */
+.log-tools {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 12px;
+  margin: -4px 0 14px;
+  font-size: 14px;
+}
+
+/* ---------- Varusteet: badges ---------- */
 .items {
   display: flex;
   flex-wrap: wrap;
@@ -1654,15 +1959,8 @@ td .hist .timeline {
   align-items: flex-start;
 }
 
-.mobile-only {
-  display: none !important;
-}
-
 /* ---------- narrow screens (HavuMobiili) ---------- */
 @media (max-width: 720px) {
-  .mobile-only {
-    display: inline-flex !important;
-  }
   .wrap {
     padding: 16px 12px 112px;
     gap: 12px;
@@ -1702,37 +2000,52 @@ td .hist .timeline {
     box-shadow: none;
     padding: 8px 10px calc(12px + env(safe-area-inset-bottom));
     display: grid;
-    grid-template-columns: 3fr 1fr;
-    gap: 6px;
+    grid-template-columns: minmax(0, 4fr) minmax(0, 1fr);
+    gap: 4px;
   }
   .cmdtabs {
     display: grid;
-    grid-template-columns: repeat(3, minmax(0, 1fr));
-    gap: 6px;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 4px;
   }
   .cmd {
-    min-height: 52px;
-    padding: 4px;
-    font-size: 14px;
+    min-height: 56px;
+    padding: 6px 2px 4px;
+    font-size: 13px;
     flex-direction: column;
     justify-content: center;
-    gap: 0;
-    line-height: 1.2;
+    gap: 3px;
+    line-height: 1.15;
     text-align: center;
+    min-width: 0;
   }
+  .cmd .name {
+    max-width: 100%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  /* the open view: a lime bar above it instead of the ▶ cursor */
   .cmd[aria-selected="true"]::before {
-    position: static;
+    content: "";
+    position: absolute;
+    left: 20%;
+    right: 20%;
+    top: 0;
+    height: 3px;
+    background: var(--accent-ink);
+    border-radius: 0 0 2px 2px;
+  }
+  .cmd.add {
+    padding: 6px 2px 4px;
+  }
+  .cmd.add .pxicon {
+    width: 18px;
+    height: 18px;
   }
   .cmd .tcount,
   .cmd .total,
-  .cmd-sep,
-  .cmd.csv {
+  .cmd-sep {
     display: none;
-  }
-  .cmd.add {
-    background: var(--accent);
-    color: var(--on-accent);
-    font-size: 15px;
   }
   .cmd .long {
     display: none;
@@ -1760,62 +2073,69 @@ td .hist .timeline {
     font-size: 15px;
     gap: 8px 10px;
   }
-  .q-side {
-    display: none;
-  }
-  .q-inline {
-    display: flex;
-    flex-direction: column;
-    gap: 6px;
-    padding: 0 0 10px 22px;
-    background: var(--sel);
-    border-radius: 0 0 6px 6px;
-    margin-top: -4px;
-  }
-  .q-inline .btn {
-    justify-content: center;
-  }
-  .q-inline .pair {
-    display: flex;
-    gap: 6px;
-  }
-  .q-inline .pair .btn {
-    flex: 1;
-  }
-  .q-inline .sel .xp {
-    margin-left: auto;
-    font-family: var(--font-pix);
-    color: var(--accent-ink);
-  }
-  .q-item {
-    padding: 8px 12px 8px 34px;
-  }
-  .q-item[aria-pressed="true"]::before {
-    left: 12px;
-  }
-  .q-days {
-    font-size: 18px;
-  }
   .items {
     display: grid;
     grid-template-columns: repeat(5, minmax(0, 1fr));
+  }
+  .q-item {
+    padding: 8px 10px 8px 32px;
+  }
+  .q-item::before {
+    left: 10px;
+  }
+  .q-detail {
+    padding: 0 10px 12px 32px;
+  }
+  .armory {
+    gap: 16px;
+  }
+  .preview {
+    width: 100%;
+    flex-direction: row;
+    align-items: center;
+    gap: 14px;
+  }
+  .preview .av-box {
+    width: 104px;
+    height: 104px;
+  }
+  .preview .av-box svg {
+    width: 92px;
+    height: 92px;
+  }
+  .armory-main {
+    flex-basis: 100%;
+  }
+  .shield-cards {
+    gap: 8px;
+  }
+  .shield-card {
+    flex-basis: 140px;
+    padding-inline: 6px;
+  }
+  .shield-card .state {
+    font-size: 13px;
+  }
+  .armory-actions .btn {
+    flex: 1 1 auto;
+    justify-content: center;
+  }
+  .milestones {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px;
+  }
+  .earlier li {
+    grid-template-columns: 44px minmax(0, 1fr);
+  }
+  .earlier li .item {
+    width: 44px;
+    height: 44px;
+    grid-row: span 2;
   }
   .item {
     width: auto;
     height: 52px;
     font-size: 16px;
-  }
-  .shields li {
-    grid-template-columns: 44px minmax(0, 1fr);
-    gap: 6px 12px;
-  }
-  .shields li .shield-icon {
-    grid-row: span 2;
-    width: 44px;
-    height: 44px;
-  }
-  .shields li .btn {
-    justify-self: start;
   }
   .toast.with-shield {
     gap: 10px;
@@ -1885,9 +2205,6 @@ td .hist .timeline {
 }
 .todo.past .what {
   opacity: 0.7;
-}
-.q-days.urgent {
-  color: var(--accent-ink);
 }
 .todo-actions {
   display: flex;

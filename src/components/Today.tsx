@@ -1,14 +1,19 @@
 import { useEffect, useRef, useState } from "react";
 import { fmtDate } from "../lib/dates";
-import { ARCHIVED_BADGES, avatarItem, COLLECTION_BADGES, statusGain, XP_RULES, type GameState } from "../lib/game";
+import { avatarItem, statusGain, XP_RULES, type GameState } from "../lib/game";
+import { deadlineLabel, URGENT_DAYS, waitLabel } from "../lib/labels";
 import type { Application } from "../lib/model";
-import { rejectionsText, SHIELDS, type Shield, type ShieldId } from "../lib/shields";
-import type { Followup, WeekBucket } from "../lib/stats";
+import type { Shield } from "../lib/shields";
+import type { Followup } from "../lib/stats";
 import { Avatar } from "./Avatar";
-import { ShieldIcon } from "./Shield";
-import { WeeklyChart } from "./charts/WeeklyChart";
+import { PixelIcon } from "./Pixels";
 
-/** Character sheet: avatar, level, XP / week / streak meters, and what the next level brings. */
+export { URGENT_DAYS };
+
+/**
+ * Character sheet: avatar with the worn shield (and a link to change it in Varusteet), level, XP / week / streak
+ * meters, and what the next level brings.
+ */
 export function PlayerPanel({
   game,
   goal,
@@ -16,6 +21,7 @@ export function PlayerPanel({
   canWrite,
   onGoal,
   shield,
+  onShields,
 }: {
   game: GameState;
   goal: number;
@@ -23,6 +29,7 @@ export function PlayerPanel({
   canWrite: boolean;
   onGoal: (n: number) => Promise<void>;
   shield: Shield | undefined;
+  onShields: () => void;
 }) {
   const L = game.level;
   const pct = Math.min(100, ((game.xp - L.from) / (L.to - L.from)) * 100);
@@ -52,6 +59,20 @@ export function PlayerPanel({
           <span className="lvl">Tl {L.n}</span>
           <span className="sub">{L.name}</span>
         </div>
+        <p className="gear-line">
+          <span className="k">KILPI</span>
+          <span className={shield ? "gear-name" : "sub"}>{shield ? shield.name : "Ei käytössä"}</span>
+          <a
+            href="#varusteet"
+            className="gear-link"
+            onClick={(e) => {
+              e.preventDefault();
+              onShields();
+            }}
+          >
+            {shield ? "Vaihda kilpeä" : "Katso kilvet"}
+          </a>
+        </p>
         <div className="stat-grid">
           <span className="k">XP</span>
           <div
@@ -156,7 +177,14 @@ function GoalInput({ goal, onGoal }: { goal: number; onGoal: (n: number) => Prom
   );
 }
 
-/** Follow-ups as quests: pick one from the list, act on it from the menu beside (or under it on phones). */
+/** How many follow-ups the Tehtävät list shows before "Näytä kaikki". */
+export const QUESTS_SHOWN = 3;
+
+/**
+ * Follow-ups as quests: a short list (the oldest first); a row opens its details and quick actions right under
+ * it, the same on every screen size. When an action takes the row off the list, focus moves to the row that took
+ * its place (or the one before, or the heading when the list is empty).
+ */
 export function QuestPanel({
   due,
   snoozed,
@@ -168,106 +196,136 @@ export function QuestPanel({
   due: Followup[];
   snoozed: Followup[];
   canWrite: boolean;
-  onReject: (a: Application) => Promise<void>;
-  onSnooze: (a: Application) => Promise<void>;
+  /** Resolve to whether the save went through. */
+  onReject: (a: Application) => Promise<boolean>;
+  onSnooze: (a: Application) => Promise<boolean>;
   onEdit: (a: Application) => void;
 }) {
-  const [picked, setPicked] = useState<string | null>(null);
+  const [openId, setOpenId] = useState<string | null>(null);
+  const [all, setAll] = useState(false);
   const [busy, setBusy] = useState(false);
-  const sel = due.find((f) => f.app.id === picked) ?? due[0];
-  const run = async (f: () => Promise<void>) => {
-    setBusy(true);
-    try {
-      await f();
-    } finally {
-      setBusy(false);
+  const [refocus, setRefocus] = useState<{ id: string; order: string[]; saved: boolean } | null>(null);
+  const listRef = useRef<HTMLUListElement>(null);
+  const headRef = useRef<HTMLHeadingElement>(null);
+  const shown = all ? due : due.slice(0, QUESTS_SHOWN);
+  useEffect(() => {
+    if (!refocus) return;
+    const row = (id: string) => listRef.current?.querySelector<HTMLButtonElement>(`[data-quest="${CSS.escape(id)}"]`);
+    // a failed save was rolled back: the row stays open and keeps the focus
+    if (!refocus.saved) {
+      setRefocus(null);
+      return void row(refocus.id)?.focus();
     }
+    // saved: move on once the row has left the list
+    if (due.some((f) => f.app.id === refocus.id)) return;
+    setRefocus(null);
+    const i = refocus.order.indexOf(refocus.id);
+    const next = [...refocus.order.slice(i + 1), ...refocus.order.slice(0, i).reverse()].map(row).find(Boolean);
+    setOpenId(null);
+    (next ?? headRef.current)?.focus();
+  }, [refocus, due]);
+  const run = async (f: Followup, act: () => Promise<boolean>) => {
+    const order = due.map((x) => x.app.id);
+    setBusy(true);
+    const saved = await act();
+    setBusy(false);
+    setRefocus({ id: f.app.id, order, saved });
   };
   // A rejection already in the history earns nothing again.
-  const rejectLabel = (a: Application) => (
-    <>Kuittaa ei valituksi {statusGain(a, "no") > 0 && <span className="xp">+{statusGain(a, "no")} XP</span>}</>
-  );
-  const when = (f: Followup) => `${f.since === f.app.d ? "haettu" : "haku päättyi"} ${fmtDate(f.since)}`;
-  const actions = (f: Followup, inline: boolean) =>
-    inline ? (
-      <div className="q-inline">
-        <span className="sub">{when(f)}</span>
-        {canWrite && (
-          <>
-            <button type="button" className="btn sel" disabled={busy} onClick={() => run(() => onReject(f.app))}>
-              {rejectLabel(f.app)}
-            </button>
-            <div className="pair">
-              <button type="button" className="btn" disabled={busy} onClick={() => run(() => onSnooze(f.app))}>
-                Muistuta 2 vk
-              </button>
-              <button type="button" className="btn" onClick={() => onEdit(f.app)}>
-                Muokkaa
-              </button>
-            </div>
-          </>
-        )}
-      </div>
-    ) : (
-      <div className="q-side" aria-label={`Toiminnot: ${f.app.org}`} role="group">
-        <span className="meta">
-          {f.app.org} · {when(f)}
-          {f.app.url && (
-            <>
-              {" · "}
-              <a href={f.app.url} target="_blank" rel="noopener">
-                ilmoitus ↗
-              </a>
-            </>
-          )}
-        </span>
-        {canWrite ? (
-          <>
-            <button type="button" className="menu-btn" disabled={busy} onClick={() => run(() => onReject(f.app))}>
-              {rejectLabel(f.app)}
-            </button>
-            <button type="button" className="menu-btn" disabled={busy} onClick={() => run(() => onSnooze(f.app))}>
-              Muistuta 2 vk päästä
-            </button>
-            <button type="button" className="menu-btn" onClick={() => onEdit(f.app)}>
-              Muokkaa
-            </button>
-          </>
-        ) : (
-          <span className="sub">Vain luku</span>
-        )}
-      </div>
-    );
+  const gain = (a: Application) => statusGain(a, "no");
+  const when = (f: Followup) => `${f.since === f.app.d ? "Haettu" : "Haku päättyi"} ${fmtDate(f.since)}`;
   return (
     <section className="frame" aria-labelledby="questH">
       <div className="ph">
-        <h2 id="questH">Tehtävät</h2>
+        <h2 id="questH" ref={headRef} tabIndex={-1}>
+          Tehtävät
+        </h2>
         {due.length > 0 && <span className="count">{due.length}</span>}
         <span className="sub">Odottaa vastausta yli 3 viikkoa · avoimet hakemukset eivät ole mukana</span>
       </div>
       {due.length === 0 ? (
         <p className="sub">Ei tehtäviä. Kaikki odottavat haut on käyty läpi.</p>
       ) : (
-        <div className="quests">
-          <div className="q-list">
-            {due.map((f) => {
-              const on = f === sel;
-              return (
-                <div key={f.app.id}>
-                  <button type="button" className="q-item" aria-pressed={on} onClick={() => setPicked(f.app.id)}>
-                    <span className="what">
-                      <b>{f.app.org}</b>
-                      {f.app.role && ` · ${f.app.role}`}
+        <ul className="q-list" ref={listRef}>
+          {shown.map((f) => {
+            const open = f.app.id === openId;
+            const panel = `q-${f.app.id}`;
+            return (
+              <li key={f.app.id} className={open ? "open" : undefined}>
+                <button
+                  type="button"
+                  className="q-item"
+                  data-quest={f.app.id}
+                  aria-expanded={open}
+                  aria-controls={panel}
+                  onClick={() => setOpenId(open ? null : f.app.id)}
+                >
+                  <span className="what">
+                    <b>{f.app.org}</b>
+                    {f.app.role && ` · ${f.app.role}`}
+                  </span>
+                  <span className="when-chip wait">
+                    <PixelIcon name="clock" />
+                    {waitLabel(f.days)}
+                  </span>
+                </button>
+                {open && (
+                  <div className="q-detail" id={panel} role="group" aria-label={`Toiminnot: ${f.app.org}`}>
+                    <span className="sub">
+                      {when(f)}
+                      {f.app.url && (
+                        <>
+                          {" · "}
+                          <a href={f.app.url} target="_blank" rel="noopener">
+                            ilmoitus ↗
+                          </a>
+                        </>
+                      )}
                     </span>
-                    <span className="q-days">{f.days} PV</span>
-                  </button>
-                  {on && actions(f, true)}
-                </div>
-              );
-            })}
-          </div>
-          {sel && actions(sel, false)}
-        </div>
+                    {canWrite ? (
+                      <div className="q-actions">
+                        <button
+                          type="button"
+                          className="btn sel"
+                          disabled={busy}
+                          onClick={() => run(f, () => onReject(f.app))}
+                        >
+                          Kuittaa ei valituksi {gain(f.app) > 0 && <span className="xp">+{gain(f.app)} XP</span>}
+                        </button>
+                        <button
+                          type="button"
+                          className="btn"
+                          disabled={busy}
+                          onClick={() => run(f, () => onSnooze(f.app))}
+                        >
+                          Muistuta 2 vk päästä
+                        </button>
+                        <button type="button" className="btn" onClick={() => onEdit(f.app)}>
+                          Muokkaa
+                        </button>
+                      </div>
+                    ) : (
+                      <span className="sub">Vain luku</span>
+                    )}
+                  </div>
+                )}
+              </li>
+            );
+          })}
+        </ul>
+      )}
+      {due.length > QUESTS_SHOWN && (
+        <button
+          type="button"
+          className="btn more"
+          aria-expanded={all}
+          onClick={() => {
+            if (all && !due.slice(0, QUESTS_SHOWN).some((f) => f.app.id === openId)) setOpenId(null);
+            setAll(!all);
+          }}
+        >
+          {all ? "▲ Näytä vähemmän" : `▼ Näytä kaikki (${due.length})`}
+        </button>
       )}
       {snoozed.length > 0 && (
         <p className="snoozed">
@@ -278,156 +336,11 @@ export function QuestPanel({
   );
 }
 
-/** Badges as inventory items; selecting one shows what it is and when it was earned. */
-/**
- * Esineet: the shields earned from rejections (wearable), the effort badges, and the outcome badges already
- * earned under "Aiemmin ansaitut".
- */
-export function ItemsPanel({
-  game,
-  fresh,
-  freshShield,
-  weeks,
-  shield,
-  onEquip,
-}: {
-  game: GameState;
-  fresh: string[];
-  freshShield: ShieldId | undefined;
-  weeks: Record<string, number>;
-  shield: Shield | undefined;
-  onEquip: (id: ShieldId | null) => void;
-}) {
-  const earned = COLLECTION_BADGES.filter((b) => game.badges.includes(b.id));
-  const archived = ARCHIVED_BADGES.filter((b) => game.badges.includes(b.id));
-  const latest = [...earned].sort((a, b) => (weeks[b.id] ?? 0) - (weeks[a.id] ?? 0))[0]?.id;
-  const [picked, setPicked] = useState<string | null>(null);
-  const selId = picked ?? fresh[0] ?? latest ?? COLLECTION_BADGES[0].id;
-  const sel = [...COLLECTION_BADGES, ...archived].find((b) => b.id === selId) ?? COLLECTION_BADGES[0];
-  const selOn = game.badges.includes(sel.id);
-  const item = (b: (typeof COLLECTION_BADGES)[number]) => {
-    const on = game.badges.includes(b.id);
-    return (
-      <button
-        type="button"
-        key={b.id}
-        className={`item${on ? " on" : ""}${fresh.includes(b.id) ? " new" : ""}`}
-        aria-pressed={b.id === sel.id}
-        aria-label={`${b.name}, ${on ? "ansaittu" : "lukittu"}`}
-        title={b.name}
-        onClick={() => setPicked(b.id)}
-      >
-        {b.icon}
-      </button>
-    );
-  };
-  return (
-    <section className="frame" aria-labelledby="itemsH">
-      <div className="ph">
-        <h2 id="itemsH">Esineet</h2>
-        <span className="pix sub" style={{ fontSize: 18 }}>
-          {earned.length} / {COLLECTION_BADGES.length}
-        </span>
-      </div>
-      <div className="shields" role="group" aria-labelledby="shieldsH">
-        <div className="shields-head">
-          <span className="k" id="shieldsH">
-            KILVET
-          </span>
-          <span className="sub">{rejectionsText(game.no)} kirjattu</span>
-        </div>
-        <ul>
-          {SHIELDS.map((s) => {
-            const open = game.no >= s.required;
-            const worn = shield?.id === s.id;
-            return (
-              <li key={s.id} className={`${open ? "on" : "locked"}${s.id === freshShield ? " new" : ""}`}>
-                <span className="shield-icon">
-                  <ShieldIcon id={s.id} />
-                </span>
-                <span className="shield-text">
-                  <span className="name">{s.name}</span>
-                  <span className="sub">
-                    {worn
-                      ? "Hahmolla"
-                      : open
-                        ? `Avattu: ${rejectionsText(s.required)}`
-                        : `Avautuu: ${rejectionsText(s.required)} (${game.no} / ${s.required})`}
-                  </span>
-                </span>
-                {open && (
-                  <button
-                    type="button"
-                    className={`btn${worn ? "" : " sel"}`}
-                    aria-label={`${worn ? "Poista käytöstä" : "Ota käyttöön"}: ${s.name}`}
-                    onClick={() => onEquip(worn ? null : s.id)}
-                  >
-                    {worn ? "Poista käytöstä" : "Ota käyttöön"}
-                  </button>
-                )}
-              </li>
-            );
-          })}
-        </ul>
-      </div>
-      <div className="items">{COLLECTION_BADGES.map(item)}</div>
-      <div className="item-detail" aria-live="polite">
-        <span className={`name${selOn ? " on" : ""}`}>{sel.name}</span>
-        <span>{sel.how}.</span>
-        <span className={`when ${selOn ? "accent" : "sub"}`}>
-          {selOn ? (weeks[sel.id] ? `Ansaittu vko ${weeks[sel.id]}` : "Ansaittu") : "Lukittu"}
-        </span>
-      </div>
-      {archived.length > 0 && (
-        <div className="archived" role="group" aria-labelledby="archivedH">
-          <span className="k" id="archivedH">
-            AIEMMIN ANSAITUT
-          </span>
-          <div className="items">{archived.map(item)}</div>
-        </div>
-      )}
-    </section>
-  );
-}
-
-export function WeeksPanel({ weeks, goal }: { weeks: WeekBucket[]; goal: number }) {
-  const past = weeks.filter((w) => !w.isNow);
-  const met = past.filter((w) => w.count >= goal).length;
-  return (
-    <section className="frame" aria-labelledby="weeksH">
-      <div className="ph">
-        <h2 id="weeksH">Viikot</h2>
-        <span className="sub">
-          {past.length ? `tavoite saavutettu ${met} / ${past.length}` : "hakemukset ISO-viikoittain"}
-        </span>
-      </div>
-      <WeeklyChart weeks={weeks} goal={goal} />
-      <div className="legend small">
-        <span>
-          <i className="sw" style={{ background: "var(--accent)" }} />
-          Tavoite
-        </span>
-        <span>
-          <i className="sw" style={{ background: "var(--bar-muted)" }} />
-          Alle tavoitteen
-        </span>
-        <span>
-          <i className="sw dash" />
-          {goal} / vko
-        </span>
-      </div>
-    </section>
-  );
-}
-
 export interface TodoItem {
   app: Application;
   deadline: string | null;
   daysLeft: number | null;
 }
-/** Days left before a saved ad's deadline counts as urgent (shown on the Tänään badge). */
-export const URGENT_DAYS = 3;
-
 /** Saved ads not applied for yet, soonest deadline first. */
 export function TodoPanel({
   items,
@@ -442,14 +355,6 @@ export function TodoPanel({
 }) {
   if (!items.length) return null;
   const urgent = items.filter((t) => t.daysLeft != null && t.daysLeft >= 0 && t.daysLeft <= URGENT_DAYS).length;
-  const due = (t: TodoItem) =>
-    t.deadline == null
-      ? t.app.end || "ei määräaikaa"
-      : t.daysLeft! < 0
-        ? `päättyi ${fmtDate(t.deadline)}`
-        : t.daysLeft === 0
-          ? "päättyy tänään"
-          : `päättyy ${fmtDate(t.deadline)}`;
   return (
     <section className="frame" aria-labelledby="todoH">
       <div className="ph">
@@ -471,11 +376,8 @@ export function TodoPanel({
                   </a>
                 </>
               )}
-              <span className="sub when">{due(t)}</span>
             </span>
-            {t.daysLeft != null && t.daysLeft >= 0 && (
-              <span className={`q-days${t.daysLeft <= URGENT_DAYS ? " urgent" : ""}`}>{t.daysLeft} PV</span>
-            )}
+            <DeadlineChip item={t} />
             {canWrite && (
               <span className="todo-actions">
                 <button type="button" className="btn sel" onClick={() => onApply(t.app)}>
@@ -490,5 +392,19 @@ export function TodoPanel({
         ))}
       </ul>
     </section>
+  );
+}
+
+/** Calendar + "Haku päättyy 3 pv päästä" (the date beside it). */
+function DeadlineChip({ item }: { item: TodoItem }) {
+  const { text, date, tone } = deadlineLabel(item.app.end, item.deadline, item.daysLeft);
+  return (
+    <span className={`when-chip deadline ${tone}`}>
+      <PixelIcon name="calendar" />
+      <span>
+        {text}
+        {date && <span className="date"> · {date}</span>}
+      </span>
+    </span>
   );
 }

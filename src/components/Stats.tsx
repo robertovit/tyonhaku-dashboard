@@ -1,15 +1,26 @@
 import { hadInterview, hadOffer } from "../lib/history";
 import { STATUS, TYPES, type Application, type Status } from "../lib/model";
-import { competition, funnel, orgRanking, summary, typeCounts } from "../lib/stats";
+import { competition, funnel, orgRanking, summary, typeCounts, type WeekBucket } from "../lib/stats";
 import { HBarChart } from "./charts/HBarChart";
 import { OutcomeBar } from "./charts/OutcomeBar";
+import { WeeklyChart } from "./charts/WeeklyChart";
 
 const FUNNEL_COLOR: Record<string, string> = {
   haastattelu: "var(--st-int)",
   tarjous: "var(--st-offer)",
 };
 
-export function StatsView({ apps, present }: { apps: Application[]; present: Status[] }) {
+export function StatsView({
+  apps,
+  present,
+  weeks,
+  goal,
+}: {
+  apps: Application[];
+  present: Status[];
+  weeks: WeekBucket[];
+  goal: number;
+}) {
   const s = summary(apps);
   const ints = [...new Set(s.interviews.map((a) => a.org))];
   const comp = competition(apps);
@@ -38,6 +49,8 @@ export function StatsView({ apps, present }: { apps: Application[]; present: Sta
           </div>
         ))}
       </section>
+
+      <WeeksPanel weeks={weeks} goal={goal} />
 
       <section className="frame" aria-labelledby="outH">
         <div className="ph">
@@ -142,5 +155,36 @@ export function StatsView({ apps, present }: { apps: Application[]; present: Sta
         )}
       </section>
     </>
+  );
+}
+
+/** Applications per ISO week against the weekly goal. */
+function WeeksPanel({ weeks, goal }: { weeks: WeekBucket[]; goal: number }) {
+  const past = weeks.filter((w) => !w.isNow);
+  const met = past.filter((w) => w.count >= goal).length;
+  return (
+    <section className="frame" aria-labelledby="weeksH">
+      <div className="ph">
+        <h2 id="weeksH">Viikot</h2>
+        <span className="sub">
+          {past.length ? `tavoite saavutettu ${met} / ${past.length}` : "hakemukset ISO-viikoittain"}
+        </span>
+      </div>
+      <WeeklyChart weeks={weeks} goal={goal} />
+      <div className="legend small">
+        <span>
+          <i className="sw" style={{ background: "var(--accent)" }} />
+          Tavoite
+        </span>
+        <span>
+          <i className="sw" style={{ background: "var(--bar-muted)" }} />
+          Alle tavoitteen
+        </span>
+        <span>
+          <i className="sw dash" />
+          {goal} / vko
+        </span>
+      </div>
+    </section>
   );
 }

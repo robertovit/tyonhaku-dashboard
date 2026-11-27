@@ -1,13 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
-import {
-  ItemsPanel,
-  PlayerPanel,
-  QuestPanel,
-  TodoPanel,
-  URGENT_DAYS,
-  WeeksPanel,
-  type TodoItem,
-} from "./components/Today";
+import { PlayerPanel, QuestPanel, TodoPanel, URGENT_DAYS, type TodoItem } from "./components/Today";
+import { GearView } from "./components/Gear";
 import { StatsView } from "./components/Stats";
 import { LogTable } from "./components/LogTable";
 import { EditDialog, type EditTarget } from "./components/EditDialog";
@@ -37,6 +30,19 @@ export default function App() {
   const canWrite = !!store && store.canWrite !== false;
   const today = todayIso();
   const [view, setView] = useView();
+  // "Vaihda kilpeä" opens Varusteet at the shields: the heading takes focus once the view is shown.
+  const [toShields, setToShields] = useState(false);
+  useEffect(() => {
+    if (!toShields || view !== "varusteet") return;
+    setToShields(false);
+    const h = document.getElementById("shieldsH");
+    h?.scrollIntoView({ block: "start" });
+    h?.focus({ preventScroll: true });
+  }, [toShields, view]);
+  const openShields = () => {
+    setView("varusteet");
+    setToShields(true);
+  };
   const [edit, setEdit] = useState<EditTarget | null>(null);
   const [highlight, setHighlight] = useState<string | null>(null);
   const [notice, setNotice] = useState("");
@@ -86,12 +92,16 @@ export default function App() {
     await store!.save(id, doc);
     flash(id);
   };
+  /** A quick update from the Today lists; resolves to whether it was saved. */
   const patch = (a: Application, p: Partial<ApplicationDoc>) =>
     guard(async () => {
       arm();
       await store!.update(a.id, { ...p, updatedAt: new Date().toISOString() });
       flash(a.id);
-    }).catch(() => {});
+    }).then(
+      () => true,
+      () => false,
+    );
   const download = async (name: string, data: string) => {
     if (!backend?.downloads) return;
     try {
@@ -162,7 +172,13 @@ export default function App() {
   const has = all.length > 0;
   const s = summary(list);
   const add = canWrite ? () => setEdit({ app: null }) : null;
-  const csv = backend?.downloads && has ? () => void exportCsv() : null;
+  const csv =
+    backend?.downloads && has
+      ? {
+          label: `Lataa CSV: kaikki ${list.length} ${list.length === 1 ? "hakemus" : "hakemusta"}${todos.length ? ` + ${todos.length} haettavaa` : ""}`,
+          run: () => void exportCsv(),
+        }
+      : null;
   const authLost = error === AUTH_MSG || notice === AUTH_MSG;
 
   return (
@@ -235,7 +251,6 @@ export default function App() {
             followupCount={fu.due.length + urgent}
             total={list.length}
             onAdd={add}
-            onCsv={csv}
           />
         )}
         <main className="content">
@@ -271,6 +286,7 @@ export default function App() {
                   canWrite={canWrite}
                   onGoal={(n) => guard(() => store!.setGoal(n))}
                   shield={shield}
+                  onShields={openShields}
                 />
                 <TodoPanel
                   items={todos}
@@ -286,8 +302,16 @@ export default function App() {
                   onSnooze={(a) => patch(a, { snoozeUntil: addDays(today, SNOOZE_DAYS) })}
                   onEdit={(a) => setEdit({ app: a })}
                 />
-                <div className="row">
-                  <ItemsPanel
+              </div>
+              <div
+                className="view"
+                id="view-varusteet"
+                role="tabpanel"
+                aria-labelledby="tab-varusteet"
+                hidden={view !== "varusteet"}
+              >
+                {view === "varusteet" && (
+                  <GearView
                     game={game}
                     fresh={celebration?.newBadges ?? []}
                     freshShield={celebration?.shield?.id}
@@ -295,8 +319,7 @@ export default function App() {
                     shield={shield}
                     onEquip={equip}
                   />
-                  <WeeksPanel weeks={weeks} goal={goal} />
-                </div>
+                )}
               </div>
               <div
                 className="view"
@@ -307,7 +330,7 @@ export default function App() {
               >
                 {view === "tilastot" &&
                   (list.length ? (
-                    <StatsView apps={list} present={present} />
+                    <StatsView apps={list} present={present} weeks={weeks} goal={goal} />
                   ) : (
                     <p className="frame sub">Tilastot näkyvät, kun ensimmäinen hakemus on lähetetty.</p>
                   ))}
@@ -376,7 +399,7 @@ export default function App() {
         toast={toast}
         onEquip={(s) => {
           equip(s.id);
-          show(`${s.name} käytössä`, "Vaihda tai poista käytöstä Esineissä.");
+          show(`${s.name} käytössä`, "Vaihda tai poista käytöstä Varusteissa.");
         }}
       />
       <Confetti burst={celebration?.key ?? 0} count={celebration?.confetti ?? 0} />

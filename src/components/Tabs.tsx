@@ -1,11 +1,18 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
+import { PixelIcon, type IconName } from "./Pixels";
 
-export const VIEWS = ["tanaan", "tilastot", "loki"] as const;
+export const VIEWS = ["tanaan", "varusteet", "loki", "tilastot"] as const;
 export type View = (typeof VIEWS)[number];
+const ICON: Record<View, IconName> = { tanaan: "calendar", varusteet: "shield", loki: "list", tilastot: "bars" };
+
+const fromHash = (): View | null => {
+  const hash = location.hash.slice(1) as View;
+  return VIEWS.includes(hash) ? hash : null;
+};
 
 function initialView(): View {
-  const hash = location.hash.slice(1) as View;
-  if (VIEWS.includes(hash)) return hash;
+  const hash = fromHash();
+  if (hash) return hash;
   try {
     const v = localStorage.getItem("th-view") as View;
     if (VIEWS.includes(v)) return v;
@@ -15,8 +22,27 @@ function initialView(): View {
   return "tanaan";
 }
 
+/**
+ * The open view, kept in the address (#varusteet) so a view can be linked to and the back button returns to the
+ * previous one. The last view is also remembered for the next visit without a hash.
+ */
 export function useView() {
-  const [view, setView] = useState<View>(initialView);
+  const [view, setState] = useState<View>(initialView);
+  useEffect(() => {
+    // The first view goes into the address too, so the back button can return to it.
+    if (!fromHash()) history.replaceState(history.state, "", `${location.pathname}${location.search}#${view}`);
+    const sync = () => {
+      const v = fromHash();
+      if (v) setState(v);
+    };
+    addEventListener("hashchange", sync);
+    addEventListener("popstate", sync);
+    return () => {
+      removeEventListener("hashchange", sync);
+      removeEventListener("popstate", sync);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- only the view shown on load
+  }, []);
   useEffect(() => {
     try {
       localStorage.setItem("th-view", view);
@@ -24,11 +50,16 @@ export function useView() {
       /* per-viewer convenience only */
     }
   }, [view]);
+  const setView = useCallback((v: View) => {
+    setState(v);
+    if (fromHash() !== v) history.pushState(null, "", `${location.pathname}${location.search}#${v}`);
+  }, []);
   return [view, setView] as const;
 }
 
 /**
- * JRPG command menu: the three views as tabs (▶ marks the open one), then the actions.
+ * JRPG command menu: the four views as tabs (▶ marks the open one, a pixel icon beside each name), then
+ * "+ Lisää hakemus".
  * A column beside the content on wide screens, a bar fixed to the bottom on phones.
  */
 export function CommandMenu({
@@ -37,19 +68,17 @@ export function CommandMenu({
   followupCount,
   total,
   onAdd,
-  onCsv,
 }: {
   view: View;
   onChange: (v: View) => void;
   followupCount: number;
   total: number;
   onAdd: (() => void) | null;
-  onCsv: (() => void) | null;
 }) {
   const labels: Record<View, React.ReactNode> = {
     tanaan: (
       <>
-        Tänään
+        <span className="name">Tänään</span>
         {followupCount > 0 && (
           <span className="tcount count" aria-label={`${followupCount} odottaa vastausta`}>
             {followupCount}
@@ -57,12 +86,13 @@ export function CommandMenu({
         )}
       </>
     ),
-    tilastot: "Tilastot",
+    varusteet: <span className="name">Varusteet</span>,
     loki: (
       <>
-        Hakuloki <span className="total">{total}</span>
+        <span className="name">Hakuloki</span> <span className="total">{total}</span>
       </>
     ),
+    tilastot: <span className="name">Tilastot</span>,
   };
   const onKey = (e: React.KeyboardEvent) => {
     const i = VIEWS.indexOf(view);
@@ -97,23 +127,22 @@ export function CommandMenu({
             tabIndex={view === v ? 0 : -1}
             onClick={() => onChange(v)}
           >
+            <PixelIcon name={ICON[v]} />
             {labels[v]}
           </button>
         ))}
       </div>
-      {(onAdd || onCsv) && <div className="cmd-sep" />}
       {onAdd && (
-        <button type="button" className="cmd add" aria-label="Lisää hakemus" onClick={onAdd}>
-          <span className="long">+ Lisää hakemus</span>
-          <span className="short" aria-hidden="true">
-            + Lisää
-          </span>
-        </button>
-      )}
-      {onCsv && (
-        <button type="button" className="cmd csv" onClick={onCsv}>
-          Lataa CSV
-        </button>
+        <>
+          <div className="cmd-sep" />
+          <button type="button" className="cmd add" aria-label="Lisää hakemus" onClick={onAdd}>
+            <PixelIcon name="plus" />
+            <span className="long">Lisää hakemus</span>
+            <span className="short" aria-hidden="true">
+              Lisää
+            </span>
+          </button>
+        </>
       )}
     </nav>
   );

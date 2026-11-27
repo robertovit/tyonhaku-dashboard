@@ -120,17 +120,23 @@ export interface Badge {
   how: string;
   earned: (g: Omit<GameState, "badges" | "xp" | "level">) => boolean;
 }
+/** Application count milestones: the first four badges, shown in Varusteet with their own pixel items. */
+export const APP_MILESTONES = [
+  { id: "first", required: 1, name: "Ensimmäinen hakemus", how: "Lähetä ensimmäinen hakemus" },
+  { id: "ten", required: 10, name: "Kymmenen hakemusta", how: "Lähetä 10 hakemusta" },
+  { id: "quarter", required: 25, name: "25 hakemusta", how: "Lähetä 25 hakemusta" },
+  { id: "fifty", required: 50, name: "Puolisataa", how: "Lähetä 50 hakemusta" },
+] as const;
+export type Milestone = (typeof APP_MILESTONES)[number];
+
 export const BADGES: Badge[] = [
-  {
-    id: "first",
-    icon: "1",
-    name: "Ensimmäinen hakemus",
-    how: "Lähetä ensimmäinen hakemus",
-    earned: (g) => g.total >= 1,
-  },
-  { id: "ten", icon: "10", name: "Kymmenen hakemusta", how: "Lähetä 10 hakemusta", earned: (g) => g.total >= 10 },
-  { id: "quarter", icon: "25", name: "25 hakemusta", how: "Lähetä 25 hakemusta", earned: (g) => g.total >= 25 },
-  { id: "fifty", icon: "50", name: "Puolisataa", how: "Lähetä 50 hakemusta", earned: (g) => g.total >= 50 },
+  ...APP_MILESTONES.map((m) => ({
+    id: m.id,
+    icon: String(m.required),
+    name: m.name,
+    how: m.how,
+    earned: (g: Omit<GameState, "badges" | "xp" | "level">) => g.total >= m.required,
+  })),
   {
     id: "burst",
     icon: "×10",
@@ -180,13 +186,25 @@ export const BADGES: Badge[] = [
 ];
 
 /**
- * What the Esineet panel collects: effort badges. The shields (lib/shields.ts) take the place of "persist", and
+ * What Varusteet collects: effort badges. The shields (lib/shields.ts) take the place of "persist", and
  * outcome badges (interview, top, offer) are only shown under "Aiemmin ansaitut" once earned; a new interview or
  * offer shows as XP and in the application's history instead. All of them stay in GameState.badges.
  */
 const ARCHIVED = ["interview", "top", "offer"];
 export const COLLECTION_BADGES = BADGES.filter((b) => b.id !== "persist" && !ARCHIVED.includes(b.id));
 export const ARCHIVED_BADGES = BADGES.filter((b) => ARCHIVED.includes(b.id));
+/** The collection without the application count milestones (shown as their own row). */
+export const EFFORT_BADGES = COLLECTION_BADGES.filter((b) => !APP_MILESTONES.some((m) => m.id === b.id));
+
+/**
+ * The application milestone to show: the next one with how far along it is, or the last one once all are reached.
+ */
+export function milestoneProgress(total: number): { milestone: Milestone; total: number; done: boolean } {
+  const next = APP_MILESTONES.find((m) => total < m.required);
+  return next
+    ? { milestone: next, total, done: false }
+    : { milestone: APP_MILESTONES[APP_MILESTONES.length - 1], total, done: true };
+}
 
 export function gameState(apps: Application[], goal: number, today: string): GameState {
   const perDay = new Map<string, number>();
