@@ -13,7 +13,9 @@ Stack: React 19 + TypeScript + Vite, charts with visx (D3 scales/shapes), Vitest
 - `npm run check` – typecheck (app + functions) + lint + tests (CI runs this and both builds)
 - `npm run build` – the web app → `dist/` (PWA manifest, service worker, icons). Cloudflare Pages builds this on push to main.
 - `npm run build:demo` – the public demo → `dist-demo/` (base `/tyonhaku-dashboard/`, no service worker).
-  `.github/workflows/demo.yml` publishes it to GitHub Pages on push to main.
+  On push to main, `.github/workflows/ci.yml` publishes it to GitHub Pages after the checks pass.
+  CI skips changes that touch only Markdown or `docs/`; Cloudflare Pages has the same exclusion in its
+  build watch paths (set in the Pages dashboard).
 - `npm run serve:web` – full stack locally after `npm run build`: `wrangler pages dev` with a local D1.
   Put `DEV_NO_AUTH=1` in `.dev.vars` (gitignored) to skip the Access check; it only works on localhost.
 - `npm run icons` – regenerates `public/icons/` from the pixel character (needs Playwright installed globally)
