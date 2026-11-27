@@ -29,7 +29,8 @@ describe("interview, then rejection", () => {
   it("forecasts and gains the same +3 XP", () => {
     expect(statusGain(int, "no")).toBe(3);
     expect(g([no]).xp - g([int]).xp).toBe(3);
-    expect(celebrationFor(g([int]), g([no]))).toMatchObject({ title: "+3 XP", confetti: 0 });
+    // the first rejection also opens the first shield (lib/shields.ts)
+    expect(celebrationFor(g([int]), g([no]))).toMatchObject({ text: "+3 XP", confetti: 0, shield: { id: "dented" } });
   });
   it("shows one row with the current status, and the interview in the funnel and badges", () => {
     expect(countBy([no])).toMatchObject({ no: 1, int: 0 });

@@ -735,7 +735,86 @@ input[type="radio"] {
   margin: 12px 0 0;
 }
 
-/* ---------- Tänään: items (badges) ---------- */
+/* ---------- Tänään: items (shields and badges) ---------- */
+.shields {
+  margin-bottom: 14px;
+}
+.shields-head,
+.archived > .k {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+.shields .k,
+.archived .k {
+  font-family: var(--font-pix);
+  color: var(--muted);
+}
+.shields ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.shields li {
+  display: grid;
+  grid-template-columns: 52px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 12px;
+  padding: 6px 8px;
+  background: var(--inset);
+  border: 2px solid var(--line);
+  border-radius: 6px;
+}
+.shields li.locked {
+  background: transparent;
+  border: 2px dashed var(--locked);
+}
+.shields li.new {
+  animation: pop 0.6s steps(4) 3;
+}
+.shield-icon {
+  width: 52px;
+  height: 52px;
+  display: grid;
+  place-items: center;
+  background: var(--av-bg);
+  border-radius: 4px;
+}
+.shield-icon svg {
+  width: 28px;
+  height: 36px;
+}
+.locked .shield-icon svg {
+  filter: grayscale(1) brightness(0.7);
+  opacity: 0.5;
+}
+.shield-text {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+.shield-text .name {
+  font-family: var(--font-pix);
+  font-size: 18px;
+}
+.shields li.on .name {
+  color: var(--accent-ink);
+}
+.shields li .btn {
+  min-height: 40px;
+  padding: 0 12px;
+}
+.archived {
+  margin-top: 14px;
+}
+.archived > .k {
+  display: block;
+}
 .items {
   display: flex;
   flex-wrap: wrap;
@@ -1537,6 +1616,25 @@ td .hist .timeline {
   flex-direction: column;
   gap: 2px;
 }
+.toast.with-shield {
+  flex-direction: row;
+  align-items: center;
+  gap: 14px;
+}
+.toast .shield-icon {
+  flex: none;
+}
+.toast.with-shield .btn {
+  flex: none;
+  white-space: nowrap;
+  padding: 0 12px;
+}
+.toast-msg {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
 .toast b {
   font-family: var(--font-pix);
   font-weight: 400;
@@ -1706,6 +1804,25 @@ td .hist .timeline {
     width: auto;
     height: 52px;
     font-size: 16px;
+  }
+  .shields li {
+    grid-template-columns: 44px minmax(0, 1fr);
+    gap: 6px 12px;
+  }
+  .shields li .shield-icon {
+    grid-row: span 2;
+    width: 44px;
+    height: 44px;
+  }
+  .shields li .btn {
+    justify-self: start;
+  }
+  .toast.with-shield {
+    gap: 10px;
+    padding: 12px 14px;
+  }
+  .toast.with-shield b {
+    font-size: 19px;
   }
   .kpi .v {
     font-size: 32px;

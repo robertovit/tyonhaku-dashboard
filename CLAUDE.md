@@ -35,7 +35,8 @@ Stack: React 19 + TypeScript + Vite, charts with visx (D3 scales/shapes), Vitest
   - `src/dev/memory.ts` (`npm run dev`): the fixture in memory, plus a fake assistant so the dialog's fill box
     can be worked on.
   - `src/demo/demo.ts` (`--mode demo`): the fixture moved to the current week (`src/demo/seed.ts`) plus a few
-    items around today, kept in the visitor's localStorage. `Backend.demo` makes the UI show the demo banner
+    items around today, kept in the visitor's localStorage (`tyonhaku-demo-v2`). Five fixture rejections are still
+    waiting in the demo, so it starts at 9 rejections and one quick rejection opens the third shield. `Backend.demo` makes the UI show the demo banner
     with "Palauta esimerkkidata"; there is no backup import or sign-out.
     Both are dynamic imports behind build-time constants, so the production build contains neither.
     Components never touch `fetch` directly.
@@ -78,7 +79,8 @@ A dark JRPG menu: framed panels (`.frame`), DotGothic16 for headings and numbers
 M PLUS Rounded 1c for body text, lime accent. Dark is the designed theme; the light theme is derived from it.
 The designs are on the owner's Design canvas (kept outside the repo).
 Views are switched from the command menu (`CommandMenu` in `Tabs.tsx`), which becomes a bottom bar under 720 px.
-The avatar is a 16×16 pixel character (`Avatar.tsx`) that gains an item per level; the app icons are drawn from it.
+The avatar is a 16×16 pixel character (`Avatar.tsx`) that gains an item per level and can wear an earned shield;
+the app icons are drawn from it.
 
 ## Data model
 
@@ -107,6 +109,15 @@ so a rejection after an interview keeps the interview (10 → 60 → 63); an off
 outcome counts and the log show the current status. `statusGain` is the forecast in the dialog and the Today panel.
 Rewards effort, not outcomes (a handled rejection also gives XP). Tests in `src/lib/logic.test.ts` pin the
 known values of the fixture (380 XP, level 3, 10/14 badges, 3 follow-ups); update them deliberately when rules change.
+
+Shields (`lib/shields.ts`): 1, 5 and 10 rejections (`GameState.no`, each application once, a rejection after an
+interview too) open three shields that give no XP. There is no separate "closed without an answer" status yet, so a
+search closed by hand as "Ei valittu" counts as well. The worn shield is a per-browser choice (`hooks/useShield.ts`,
+localStorage `tyonhaku:shield:<mode>`); sprites in `components/Shield.tsx` are on the avatar's pixel grid. The
+Esineet panel shows the shields, the effort badges (`COLLECTION_BADGES`; the shields replace "Sinnikäs") and earned
+outcome badges under "Aiemmin ansaitut" (`ARCHIVED_BADGES`); all stay in `GameState.badges`. `celebrationWatch`
+compares only confirmed states (no write pending) after `arm()`, so a failed save and the first load celebrate
+nothing; a rejection never gets confetti, and a newly opened shield comes with "Ota käyttöön" in the toast.
 
 ## Later: Claude fill in the web app
 

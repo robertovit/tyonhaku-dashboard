@@ -6,6 +6,9 @@ import { addDays, dayDiff, fmtDate, parseFinDate, weekday } from "../lib/dates";
 type Docs = [string, Record<string, unknown>][];
 
 const ISO = /^\d{4}-\d{2}-\d{2}/;
+// Five of the fixture's rejections have no answer yet in the demo, so it starts at 9 rejections: the Today panel's
+// follow-up "Kuittaa ei valituksi" then opens the third shield (10 rejections, lib/shields.ts) in a click.
+const STILL_WAITING = new Set(["app-05", "app-08", "app-09", "app-10", "app-11"]);
 
 export function demoSeed(today: string): Docs {
   const shift = Math.max(0, Math.floor(dayDiff(FIXTURE_TODAY, today) / 7)) * 7;
@@ -18,6 +21,7 @@ export function demoSeed(today: string): Docs {
       id,
       {
         ...d,
+        ...(STILL_WAITING.has(id) && { status: "wait" }),
         d: day(d.d),
         end: due ? fmtDate(addDays(due, shift)) : end,
         createdAt: day(d.createdAt),

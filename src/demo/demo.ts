@@ -8,7 +8,7 @@ export async function connect(): Promise<Backend> {
   return memoryBackend({
     seed: demoSeed,
     goal: 3,
-    storageKey: "tyonhaku-demo-v1",
+    storageKey: "tyonhaku-demo-v2",
     downloads: blobDownloads,
     demo: true,
   });

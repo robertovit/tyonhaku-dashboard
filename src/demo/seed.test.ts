@@ -2,7 +2,8 @@ import { describe, expect, it } from "vitest";
 import { demoSeed } from "./seed";
 import { FIXTURE, FIXTURE_TODAY } from "../dev/fixtures";
 import { addDays, dayDiff, fmtDate, weekday } from "../lib/dates";
-import { xpForApp } from "../lib/game";
+import { gameState, xpForApp } from "../lib/game";
+import { followups } from "../lib/stats";
 import { normalize } from "../lib/model";
 
 describe("demoSeed", () => {
@@ -55,5 +56,14 @@ describe("demoSeed", () => {
       { status: "no", d: "2027-03-14" },
     ]);
     expect(xpForApp(app)).toBe(66); // 10 + cover letter 3 + rejection 3 + interview 50
+  });
+
+  it("starts one rejection short of the third shield, with old applications to mark rejected", () => {
+    const today = "2027-03-17";
+    const apps = demoSeed(today)
+      .map(([id, d]) => normalize(id, d, today))
+      .filter((a) => a.status !== "todo");
+    expect(gameState(apps, 3, today).no).toBe(9);
+    expect(followups(apps, today).due.length).toBeGreaterThanOrEqual(5);
   });
 });

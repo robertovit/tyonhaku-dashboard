@@ -15,6 +15,7 @@ import { Confetti, Toast } from "./components/Effects";
 import { CommandMenu, useView } from "./components/Tabs";
 import { useBackend } from "./hooks/useBackend";
 import { useCelebration } from "./hooks/useCelebration";
+import { useShield } from "./hooks/useShield";
 import { useToast } from "./hooks/useToast";
 import { addDays, dayDiff, deadlineIso, fmtDate, isoWeek, todayIso, weekday } from "./lib/dates";
 import { avgXpPerApp, badgeWeeks, gameState } from "./lib/game";
@@ -57,10 +58,11 @@ export default function App() {
   );
   const urgent = todos.filter((t) => t.daysLeft != null && t.daysLeft >= 0 && t.daysLeft <= URGENT_DAYS).length;
   const game = useMemo(() => (apps ? gameState(list, goal, today) : null), [apps, list, goal, today]);
-  const { arm, celebration } = useCelebration(game);
+  const { arm, celebration } = useCelebration(game, pending);
   useEffect(() => {
-    if (celebration) show(celebration.title, celebration.text);
+    if (celebration) show(celebration.title, celebration.text, celebration.shield);
   }, [celebration, show]);
+  const { shield, equip } = useShield(game?.no ?? 0);
 
   const weeks = useMemo(() => weeklySeries(list, today), [list, today]);
   const fu = useMemo(() => followups(list, today), [list, today]);
@@ -199,7 +201,10 @@ export default function App() {
               type="button"
               className="linkbtn"
               onClick={() =>
-                void backend.demo!.reset().then(() => show("Esimerkkidata palautettu", "Muutoksesi poistettiin."))
+                void backend.demo!.reset().then(() => {
+                  equip(null);
+                  show("Esimerkkidata palautettu", "Muutoksesi poistettiin.");
+                })
               }
             >
               Palauta esimerkkidata
@@ -265,6 +270,7 @@ export default function App() {
                   avgXp={avgXpPerApp(list)}
                   canWrite={canWrite}
                   onGoal={(n) => guard(() => store!.setGoal(n))}
+                  shield={shield}
                 />
                 <TodoPanel
                   items={todos}
@@ -281,7 +287,14 @@ export default function App() {
                   onEdit={(a) => setEdit({ app: a })}
                 />
                 <div className="row">
-                  <ItemsPanel game={game} fresh={celebration?.newBadges ?? []} weeks={earnedWeeks} />
+                  <ItemsPanel
+                    game={game}
+                    fresh={celebration?.newBadges ?? []}
+                    freshShield={celebration?.shield?.id}
+                    weeks={earnedWeeks}
+                    shield={shield}
+                    onEquip={equip}
+                  />
                   <WeeksPanel weeks={weeks} goal={goal} />
                 </div>
               </div>
@@ -359,7 +372,13 @@ export default function App() {
         onDelete={(id) => store!.remove(id)}
         onClose={() => setEdit(null)}
       />
-      <Toast toast={toast} />
+      <Toast
+        toast={toast}
+        onEquip={(s) => {
+          equip(s.id);
+          show(`${s.name} käytössä`, "Vaihda tai poista käytöstä Esineissä.");
+        }}
+      />
       <Confetti burst={celebration?.key ?? 0} count={celebration?.confetti ?? 0} />
     </div>
   );
