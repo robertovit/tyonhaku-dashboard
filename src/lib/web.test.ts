@@ -40,12 +40,21 @@ describe("share target", () => {
       seen.push(u),
       new Response(JSON.stringify({ title: "Rooli at Yritys | LinkedIn" }), { status: 200 })
     )) as unknown as typeof fetch;
-    expect(await adTitle("https://www.linkedin.com/jobs/view/1", ok)).toBe("Rooli at Yritys | LinkedIn");
+    expect(await adTitle("https://www.linkedin.com/jobs/view/1", ok)).toEqual({
+      title: "Rooli at Yritys | LinkedIn",
+      reason: "",
+    });
     expect(seen[0]).toBe("/api/ad-title?url=https%3A%2F%2Fwww.linkedin.com%2Fjobs%2Fview%2F1");
+    const blocked = (async () =>
+      new Response(JSON.stringify({ title: "", reason: "www.linkedin.com vastasi 999" }))) as unknown as typeof fetch;
+    expect(await adTitle("https://www.linkedin.com/jobs/view/1", blocked)).toEqual({
+      title: "",
+      reason: "www.linkedin.com vastasi 999",
+    });
     const down = (async () => {
       throw new TypeError("offline");
     }) as unknown as typeof fetch;
-    expect(await adTitle("https://www.linkedin.com/jobs/view/1", down)).toBe("");
+    expect((await adTitle("https://www.linkedin.com/jobs/view/1", down)).title).toBe("");
   });
 });
 

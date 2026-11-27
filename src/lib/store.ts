@@ -36,6 +36,12 @@ export interface Assistant {
   fillFromAd(text: string, image: File | null, signal: AbortSignal): Promise<AdFields>;
 }
 
+/** A shared link's page title; `reason` (Finnish, for the owner) says why there is none. */
+export interface AdTitle {
+  title: string;
+  reason: string;
+}
+
 export interface Downloads {
   save(filename: string, data: string): Promise<void>;
 }
@@ -61,8 +67,8 @@ export interface Backend {
   reason?: string;
   /** Where "Kirjaudu ulos" leads; absent when the backend has no sign-in of its own. */
   logoutUrl?: string;
-  /** The page title of a job ad shared as a bare link, or "" (never throws). Absent without a server. */
-  adTitle?: (url: string) => Promise<string>;
+  /** The page title of a job ad shared as a bare link (never throws). Absent without a server. */
+  adTitle?: (url: string) => Promise<AdTitle>;
   /** Set in the public demo: the UI shows the demo banner, and `reset` brings back the example data. */
   demo?: { reset(): Promise<void> };
 }

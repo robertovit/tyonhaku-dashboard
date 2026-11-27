@@ -3,7 +3,14 @@
 import type { Backup } from "./backup";
 import { todayIso } from "./dates";
 import { normalize, type ApplicationDoc } from "./model";
-import { UserFacingError, type ApplicationStore, type Backend, type Downloads, type StoreListener } from "./store";
+import {
+  UserFacingError,
+  type AdTitle,
+  type ApplicationStore,
+  type Backend,
+  type Downloads,
+  type StoreListener,
+} from "./store";
 
 type Fetch = typeof fetch;
 /** Where to send the browser to log in again: an /api URL the service worker never answers from its cache. */
@@ -147,15 +154,16 @@ export const blobDownloads: Downloads = {
   },
 };
 
-/** Asks the server for a shared link's page title (functions/api/ad-title.ts); "" on any failure. */
-export async function adTitle(url: string, f: Fetch = (...a) => fetch(...a)): Promise<string> {
+/** Asks the server for a shared link's page title (functions/api/ad-title.ts). Never throws. */
+export async function adTitle(url: string, f: Fetch = (...a) => fetch(...a)): Promise<AdTitle> {
   try {
-    const r = await call<{ title?: unknown }>(f, `/ad-title?url=${encodeURIComponent(url)}`, {
+    const r = await call<{ title?: unknown; reason?: unknown }>(f, `/ad-title?url=${encodeURIComponent(url)}`, {
       signal: AbortSignal.timeout(7000),
     });
-    return typeof r.title === "string" ? r.title : "";
-  } catch {
-    return "";
+    const title = typeof r.title === "string" ? r.title : "";
+    return { title, reason: title ? "" : typeof r.reason === "string" ? r.reason : "" };
+  } catch (e) {
+    return { title: "", reason: e instanceof UserFacingError ? e.message : "palvelin ei vastannut" };
   }
 }
 

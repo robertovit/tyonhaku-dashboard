@@ -54,19 +54,30 @@ async function readStart(r: Response): Promise<string> {
   return new TextDecoder().decode(all.slice(0, MAX_BYTES));
 }
 
-/** The ad's title, or "" when the page cannot be read. Follows up to 3 redirects, each to a known site. */
-export async function fetchAdTitle(start: URL, fetcher: typeof fetch = fetch): Promise<string> {
+export interface AdTitle {
+  title: string;
+  /** Why there is no title (shown to the owner, in Finnish); "" when there is one. */
+  reason: string;
+}
+
+const LOGIN_WALL = /^\/(authwall|login|signup|uas\/login|checkpoint)/i;
+
+/** The ad's title, or a reason why the page could not be read. Follows up to 3 redirects, each to a known site. */
+export async function fetchAdTitle(start: URL, fetcher: typeof fetch = fetch): Promise<AdTitle> {
+  const no = (reason: string): AdTitle => ({ title: "", reason });
   let url = start;
   const signal = AbortSignal.timeout(5000);
   for (let hop = 0, tries = 0; hop < 4;) {
+    if (LOGIN_WALL.test(url.pathname)) return no(`${url.hostname} vaatii kirjautumisen`);
     const r = await fetcher(url.toString(), {
       redirect: "manual",
       signal,
       headers: { "user-agent": UA, accept: "text/html", "accept-language": "fi,en;q=0.8" },
     });
     if (r.status >= 300 && r.status < 400) {
-      const next = allowedAdUrl(new URL(r.headers.get("location") ?? "", url).toString());
-      if (!next) return "";
+      const to = new URL(r.headers.get("location") ?? "", url);
+      const next = allowedAdUrl(to.toString());
+      if (!next) return no(`ohjaus osoitteeseen ${to.hostname}`);
       url = next;
       hop++;
       continue;
@@ -75,8 +86,10 @@ export async function fetchAdTitle(start: URL, fetcher: typeof fetch = fetch): P
       await new Promise((ok) => setTimeout(ok, 700));
       continue;
     }
-    if (!r.ok || !(r.headers.get("content-type") ?? "").includes("html")) return "";
-    return extractTitle(await readStart(r));
+    if (!r.ok) return no(`${url.hostname} vastasi ${r.status}`);
+    if (!(r.headers.get("content-type") ?? "").includes("html")) return no("ei HTML-sivu");
+    const title = extractTitle(await readStart(r));
+    return title ? { title, reason: "" } : no("sivulla ei ollut otsikkoa");
   }
-  return "";
+  return no("liikaa uudelleenohjauksia");
 }

@@ -35,8 +35,26 @@ describe("ad title lookup", () => {
     const start = allowedAdUrl("https://www.linkedin.com/jobs/view/1")!;
     expect(
       await fetchAdTitle(start, via(redirect("https://fi.linkedin.com/jobs/view/1"), page("<title>T</title>"))),
-    ).toBe("T");
-    expect(await fetchAdTitle(start, via(redirect("https://evil.example/"), page("<title>X</title>")))).toBe("");
-    expect(await fetchAdTitle(start, via(new Response("", { status: 404 })))).toBe("");
+    ).toEqual({ title: "T", reason: "" });
+    expect(await fetchAdTitle(start, via(redirect("https://evil.example/"), page("<title>X</title>")))).toEqual({
+      title: "",
+      reason: "ohjaus osoitteeseen evil.example",
+    });
+    expect(await fetchAdTitle(start, via(new Response("", { status: 403 })))).toEqual({
+      title: "",
+      reason: "www.linkedin.com vastasi 403",
+    });
+  });
+
+  it("does not take a login wall for the ad", async () => {
+    const redirect = new Response(null, {
+      status: 302,
+      headers: { location: "https://www.linkedin.com/authwall?trk=x" },
+    });
+    const start = allowedAdUrl("https://www.linkedin.com/jobs/view/1")!;
+    expect(await fetchAdTitle(start, (async () => redirect) as unknown as typeof fetch)).toEqual({
+      title: "",
+      reason: "www.linkedin.com vaatii kirjautumisen",
+    });
   });
 });

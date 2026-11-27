@@ -2,6 +2,7 @@
 import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
 import { VitePWA } from "vite-plugin-pwa";
+import { execSync } from "node:child_process";
 
 // Two builds:
 // - `npm run build`: the installable web app (PWA) for Cloudflare Pages → dist/
@@ -36,9 +37,24 @@ const pwa = VitePWA({
   },
 });
 
+// Shown in the footer so the owner can see which build the phone runs: the commit and the build day (Finnish time).
+function appVersion(): string {
+  let sha = process.env.CF_PAGES_COMMIT_SHA || process.env.GITHUB_SHA || "";
+  if (!sha) {
+    try {
+      sha = execSync("git rev-parse HEAD", { stdio: ["ignore", "pipe", "ignore"] }).toString();
+    } catch {
+      sha = "dev";
+    }
+  }
+  const day = new Intl.DateTimeFormat("fi-FI", { timeZone: "Europe/Helsinki", day: "numeric", month: "numeric" });
+  return `${sha.trim().slice(0, 7)} · ${day.format(new Date())}`;
+}
+
 export default defineConfig(({ mode }) => {
   const demo = mode === "demo";
   return {
+    define: { "import.meta.env.VITE_APP_VERSION": JSON.stringify(appVersion()) },
     base: demo ? "/tyonhaku-dashboard/" : "/",
     plugins: demo ? [react()] : [react(), pwa],
     build: demo ? { target: "es2022", outDir: "dist-demo" } : { target: "es2022" },
