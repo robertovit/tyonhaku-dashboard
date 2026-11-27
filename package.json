@@ -6,6 +6,7 @@
   "scripts": {
     "dev": "vite",
     "build": "vite build",
+    "build:demo": "vite build --mode demo",
     "preview": "vite preview",
     "serve:web": "wrangler pages dev dist --d1 DB --compatibility-date 2026-11-01 --port 8788",
     "icons": "node scripts/icons.mjs",

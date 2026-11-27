@@ -1,5 +1,6 @@
 // The app talks to its data only through these interfaces. Implementations: lib/web.ts (own server,
-// Cloudflare Pages Functions + D1) and dev/memory.ts (`npm run dev` only); lib/backend.ts picks one.
+// Cloudflare Pages Functions + D1) and lib/memory.ts (in the browser: `npm run dev` and the public demo);
+// lib/backend.ts picks one.
 import type { Backup } from "./backup";
 import type { Application, ApplicationDoc } from "./model";
 
@@ -60,4 +61,6 @@ export interface Backend {
   reason?: string;
   /** Where "Kirjaudu ulos" leads; absent when the backend has no sign-in of its own. */
   logoutUrl?: string;
+  /** Set in the public demo: the UI shows the demo banner, and `reset` brings back the example data. */
+  demo?: { reset(): Promise<void> };
 }

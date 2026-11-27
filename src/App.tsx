@@ -27,6 +27,7 @@ import { UserFacingError } from "./lib/store";
 import { AUTH_MSG, LOGIN_URL } from "./lib/web";
 
 const WEEKDAYS = ["ma", "ti", "ke", "to", "pe", "la", "su"];
+const REPO_URL = "https://github.com/robertovit/tyonhaku-dashboard";
 
 export default function App() {
   const { backend, apps, pending, goal, error } = useBackend();
@@ -166,6 +167,29 @@ export default function App() {
         </div>
       </header>
 
+      {backend?.demo && (
+        <p className="frame notice demo-banner">
+          <span>
+            <strong>Demo:</strong> hakemukset ovat keksittyjä. Kokeile vapaasti, sillä muutokset tallentuvat vain tähän
+            selaimeen.
+          </span>
+          <span className="demo-actions">
+            <button
+              type="button"
+              className="linkbtn"
+              onClick={() =>
+                void backend.demo!.reset().then(() => show("Esimerkkidata palautettu", "Muutoksesi poistettiin."))
+              }
+            >
+              Palauta esimerkkidata
+            </button>
+            <a className="linkbtn" href={REPO_URL}>
+              Lähdekoodi GitHubissa
+            </a>
+          </span>
+        </p>
+      )}
+
       {(state === "stale" || state === "snapshot") && statusText && (
         <p className="frame notice" role="status">
           {statusText}{" "}
@@ -272,7 +296,7 @@ export default function App() {
             <span className="source" data-state={state}>
               {statusText}
             </span>
-            <span>Vain sinä voit muokata hakemuksia.</span>
+            {!backend?.demo && <span>Vain sinä voit muokata hakemuksia.</span>}
             {backend?.downloads && has && (
               <button type="button" className="linkbtn" onClick={() => void exportJson()}>
                 Lataa varmuuskopio (JSON)

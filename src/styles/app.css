@@ -267,6 +267,26 @@ button {
   padding: 14px 20px;
   border-color: var(--warm);
 }
+.demo-banner {
+  border-color: var(--accent-ink);
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 16px;
+}
+.demo-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0 12px;
+}
+.demo-banner .linkbtn {
+  min-height: 36px;
+  font-size: 14px;
+}
+.demo-banner a.linkbtn {
+  display: inline-flex;
+  align-items: center;
+}
 footer {
   font-size: 14px;
   color: var(--muted);

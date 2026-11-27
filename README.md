@@ -2,9 +2,11 @@
 
 Oma työnhaun seurantatyökalu, jossa hakemukset, odottavat haut ja viikkotavoite näkyvät yhdessä näkymässä. Ulkoasu on tumma JRPG-valikko: hakijalla on pikselihahmo, taso ja esineinä kerättävät saavutukset.
 
+**[Kokeile demoa →](https://robertovit.github.io/tyonhaku-dashboard/)** Demossa on keksittyä esimerkkidataa. Voit lisätä ja muokata hakemuksia vapaasti, ja muutokset tallentuvat vain omaan selaimeesi.
+
 ![Työnhaku-dashboard](docs/dashboard.png)
 
-Kuvakaappauksen hakemukset ovat keksittyä esimerkkidataa. Omat hakemukseni eivät ole tässä repossa.
+Kuvakaappauksen ja demon hakemukset ovat keksittyä esimerkkidataa. Omat hakemukseni eivät ole tässä repossa.
 
 ## Mitä se tekee
 
@@ -42,6 +44,7 @@ npm install
 npm run dev      # paikallinen versio esimerkkidatalla
 npm run check    # tyyppitarkistus, lint ja testit
 npm run build    # web-sovellus kansioon dist/
+npm run build:demo # julkinen demo kansioon dist-demo/ (GitHub Pages)
 npm run serve:web  # koko pino paikallisesti (wrangler + paikallinen D1)
 ```
 

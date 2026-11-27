@@ -3,14 +3,17 @@
 Personal job-search tracker with gamification. UI text is Finnish. An installable PWA on Cloudflare Pages,
 with Pages Functions + D1 as the backend and Cloudflare Access in front. Usable on the phone; on Android the
 installed app is in the share menu. (It started as a claude.ai artifact; that version has been removed.)
+A public demo with invented data runs on GitHub Pages (https://robertovit.github.io/tyonhaku-dashboard/).
 
 Stack: React 19 + TypeScript + Vite, charts with visx (D3 scales/shapes), Vitest, ESLint, Prettier,
 `vite-plugin-pwa`, Cloudflare Pages Functions (`functions/`) with D1, `jose` for the Access token check.
 
 ## Commands (run in the repo root)
 - `npm run dev` – local dev server with an in-memory backend (`src/dev/memory.ts`, invented data from `fixtures.ts`)
-- `npm run check` – typecheck (app + functions) + lint + tests (CI runs this and the build)
+- `npm run check` – typecheck (app + functions) + lint + tests (CI runs this and both builds)
 - `npm run build` – the web app → `dist/` (PWA manifest, service worker, icons). Cloudflare Pages builds this on push to main.
+- `npm run build:demo` – the public demo → `dist-demo/` (base `/tyonhaku-dashboard/`, no service worker).
+  `.github/workflows/demo.yml` publishes it to GitHub Pages on push to main.
 - `npm run serve:web` – full stack locally after `npm run build`: `wrangler pages dev` with a local D1.
   Put `DEV_NO_AUTH=1` in `.dev.vars` (gitignored) to skip the Access check; it only works on localhost.
 - `npm run icons` – regenerates `public/icons/` from the pixel character (needs Playwright installed globally)
@@ -22,8 +25,13 @@ Stack: React 19 + TypeScript + Vite, charts with visx (D3 scales/shapes), Vitest
   becomes visible. An expired Access session shows "Kirjaudu uudelleen", which opens `/api/session`
   (never served by the service worker) so Access can show its login. "Kirjaudu ulos" in the footer goes to
   `/cdn-cgi/access/logout` (`Backend.logoutUrl`).
-- `src/dev/memory.ts` (`npm run dev` only, loaded behind `import.meta.env.DEV` so it never ships): the fixture in
-  memory, plus a fake assistant so the dialog's fill box can be worked on.
+- `src/lib/memory.ts` – data in the browser, used by the two below (optionally kept in localStorage).
+  - `src/dev/memory.ts` (`npm run dev`): the fixture in memory, plus a fake assistant so the dialog's fill box
+    can be worked on.
+  - `src/demo/demo.ts` (`--mode demo`): the fixture moved to the current week (`src/demo/seed.ts`) plus a few
+    items around today, kept in the visitor's localStorage. `Backend.demo` makes the UI show the demo banner
+    with "Palauta esimerkkidata"; there is no backup import or sign-out.
+  Both are dynamic imports behind build-time constants, so the production build contains neither.
 Components never touch `fetch` directly.
 
 ## API (`functions/`)
@@ -74,5 +82,6 @@ secret `ANTHROPIC_API_KEY`, builds the prompt with `adPrompt()` and cleans the a
 
 ## Conventions
 - This repo is public. Keep real application data, real company names, account ids, emails and the
-  Design canvas and app URLs out of it; fixtures use invented employers.
+  Design canvas and app URLs out of it (the demo URL is public on purpose); fixtures and demo data use invented
+  employers.
 - Pass `today` into logic functions instead of reading the clock, so tests stay deterministic.
