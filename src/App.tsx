@@ -309,7 +309,9 @@ export default function App() {
               {statusText}
             </span>
             {!backend?.demo && <span>Vain sinä voit muokata hakemuksia.</span>}
-            <span className="version">versio {import.meta.env.VITE_APP_VERSION}</span>
+            <span className="version" title={`Versio ${import.meta.env.VITE_COMMIT}`}>
+              Päivitetty {import.meta.env.VITE_BUILT_AT}
+            </span>
             {backend?.downloads && has && (
               <button type="button" className="linkbtn" onClick={() => void exportJson()}>
                 Lataa varmuuskopio (JSON)

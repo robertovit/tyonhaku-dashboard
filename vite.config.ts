@@ -37,24 +37,39 @@ const pwa = VitePWA({
   },
 });
 
-// Shown in the footer so the owner can see which build the phone runs: the commit and the build day (Finnish time).
-function appVersion(): string {
-  let sha = process.env.CF_PAGES_COMMIT_SHA || process.env.GITHUB_SHA || "";
-  if (!sha) {
-    try {
-      sha = execSync("git rev-parse HEAD", { stdio: ["ignore", "pipe", "ignore"] }).toString();
-    } catch {
-      sha = "dev";
-    }
+// Shown in the footer so the owner can see which build the phone runs: when it was built (Finnish time),
+// e.g. "27.11. klo 10.42", with the commit in the tooltip.
+function builtAt(now = new Date()): string {
+  const parts = new Intl.DateTimeFormat("en-GB", {
+    timeZone: "Europe/Helsinki",
+    day: "numeric",
+    month: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+    hourCycle: "h23",
+  }).formatToParts(now);
+  const p = (t: string) => parts.find((x) => x.type === t)?.value ?? "";
+  return `${p("day")}.${p("month")}. klo ${p("hour")}.${p("minute")}`;
+}
+function commit(): string {
+  const sha = process.env.CF_PAGES_COMMIT_SHA || process.env.GITHUB_SHA;
+  if (sha) return sha.slice(0, 7);
+  try {
+    return execSync("git rev-parse --short HEAD", { stdio: ["ignore", "pipe", "ignore"] })
+      .toString()
+      .trim();
+  } catch {
+    return "dev";
   }
-  const day = new Intl.DateTimeFormat("fi-FI", { timeZone: "Europe/Helsinki", day: "numeric", month: "numeric" });
-  return `${sha.trim().slice(0, 7)} · ${day.format(new Date())}`;
 }
 
 export default defineConfig(({ mode }) => {
   const demo = mode === "demo";
   return {
-    define: { "import.meta.env.VITE_APP_VERSION": JSON.stringify(appVersion()) },
+    define: {
+      "import.meta.env.VITE_BUILT_AT": JSON.stringify(builtAt()),
+      "import.meta.env.VITE_COMMIT": JSON.stringify(commit()),
+    },
     base: demo ? "/tyonhaku-dashboard/" : "/",
     plugins: demo ? [react()] : [react(), pwa],
     build: demo ? { target: "es2022", outDir: "dist-demo" } : { target: "es2022" },
