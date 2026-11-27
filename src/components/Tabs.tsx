@@ -58,38 +58,30 @@ export function useView() {
 }
 
 /**
- * JRPG command menu: the four views as tabs (▶ marks the open one, a pixel icon beside each name), then
- * "+ Lisää hakemus".
+ * JRPG command menu: the four views as tabs (the open one has the selected background and accent color, and is
+ * aria-selected; a pixel icon beside each name), then "+ Lisää hakemus". Counts live in the views themselves.
  * A column beside the content on wide screens, a bar fixed to the bottom on phones.
  */
 export function CommandMenu({
   view,
   onChange,
-  followupCount,
   total,
   onAdd,
 }: {
   view: View;
   onChange: (v: View) => void;
-  followupCount: number;
   total: number;
   onAdd: (() => void) | null;
 }) {
   const labels: Record<View, React.ReactNode> = {
-    tanaan: (
-      <>
-        <span className="name">Tänään</span>
-        {followupCount > 0 && (
-          <span className="tcount count" aria-label={`${followupCount} odottaa vastausta`}>
-            {followupCount}
-          </span>
-        )}
-      </>
-    ),
+    tanaan: <span className="name">Tänään</span>,
     varusteet: <span className="name">Varusteet</span>,
     loki: (
       <>
-        <span className="name">Hakuloki</span> <span className="total">{total}</span>
+        <span className="name">Hakuloki</span>{" "}
+        <span className="total" aria-label={`${total} hakemusta`}>
+          {total}
+        </span>
       </>
     ),
     tilastot: <span className="name">Tilastot</span>,

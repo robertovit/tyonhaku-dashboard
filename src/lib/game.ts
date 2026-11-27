@@ -286,8 +286,11 @@ export interface Celebration {
   /** A shield this save unlocked. */
   shield?: Shield;
 }
-/** What to celebrate after a save changed the game state; null when nothing was gained. */
-export function celebrationFor(before: GameState, after: GameState): Celebration | null {
+/**
+ * What to celebrate after a save changed the game state; null when nothing was gained. `saved` names what was
+ * saved ("Merkitty haetuksi"), so the XP that came true reads with it.
+ */
+export function celebrationFor(before: GameState, after: GameState, saved = ""): Celebration | null {
   const gained = after.xp - before.xp;
   const shield = newlyUnlockedShield(before.no, after.no);
   if (gained <= 0 && !shield) return null;
@@ -316,8 +319,8 @@ export function celebrationFor(before: GameState, after: GameState): Celebration
   if (rejection && !big && !shield) lines.push("Ei-valinta käsitelty. Jokainen haku vie eteenpäin.");
   const xp = gained > 0 ? `+${gained} XP` : "";
   return {
-    title: shield ? `${shield.name} avattu` : xp,
-    text: (shield ? [xp, ...lines] : lines).filter(Boolean).join(" · "),
+    title: shield ? `${shield.name} avattu` : [saved, xp].filter(Boolean).join(" · "),
+    text: (shield ? [saved, xp, ...lines] : lines).filter(Boolean).join(" · "),
     confetti: rejection || !big ? 0 : interview || after.level.n > before.level.n ? 160 : 90,
     newBadges: newBadges.map((b) => b.id),
     shield,
@@ -333,9 +336,12 @@ export const ARM_WINDOW_MS = 8000;
 export function celebrationWatch(now: () => number = Date.now) {
   let prev: GameState | null = null;
   let armedAt = 0;
+  let saved = "";
   return {
-    arm() {
+    /** `label` names the save in the message, e.g. "Merkitty haetuksi". */
+    arm(label = "") {
       armedAt = now();
+      saved = label;
     },
     see(game: GameState, pending: boolean): Celebration | null {
       if (pending) return null;
@@ -343,7 +349,7 @@ export function celebrationWatch(now: () => number = Date.now) {
       prev = game;
       if (!before || !armedAt || now() - armedAt > ARM_WINDOW_MS) return null;
       armedAt = 0;
-      return celebrationFor(before, game);
+      return celebrationFor(before, game, saved);
     },
   };
 }

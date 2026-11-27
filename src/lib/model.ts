@@ -46,7 +46,7 @@ export const STATUS: Record<Status, { label: string; color: string }> = {
   int: { label: "Haastattelu", color: "var(--st-int)" },
   wait: { label: "Ei vastausta", color: "var(--st-wait)" },
   no: { label: "Ei valittu", color: "var(--st-no)" },
-  todo: { label: "Haettava", color: "var(--st-todo)" },
+  todo: { label: "Tallennettu paikka", color: "var(--st-todo)" },
 };
 /** Outcomes of sent applications, in display order (`todo` is not an outcome). */
 export const STATUS_ORDER: Status[] = ["offer", "int", "wait", "no"];

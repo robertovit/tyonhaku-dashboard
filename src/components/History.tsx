@@ -6,12 +6,15 @@ import { STATUS, type Stage, type StageEvent, type Status } from "../lib/model";
 type HistoryOf = { d: string; status: Status; events: StageEvent[] };
 const dateText = (d: string) => (d ? fmtDate(d) : "pvm ?");
 
-/** Read-only history: sent, then each stage reached, one row each (fits a phone screen). */
-export function Timeline({ app, fresh }: { app: HistoryOf; fresh?: Stage | null }) {
+/**
+ * Read-only history: sent, then each stage reached, one row each (fits a phone screen). `rail` draws it as a
+ * line of dots in the stage colors (the log cards).
+ */
+export function Timeline({ app, fresh, rail }: { app: HistoryOf; fresh?: Stage | null; rail?: boolean }) {
   return (
-    <ol className="timeline">
+    <ol className={`timeline${rail ? " rail" : ""}`}>
       {timeline(app).map((r) => (
-        <li key={r.key} className={r.key === fresh ? "new" : undefined}>
+        <li key={r.key} data-k={r.key} className={r.key === fresh ? "new" : undefined}>
           <span className="pix">{r.key === "wait" ? "" : dateText(r.d)}</span>
           <span>
             {r.label}

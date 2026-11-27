@@ -1,9 +1,10 @@
 import { useEffect, useMemo, useState } from "react";
-import { PlayerPanel, QuestPanel, TodoPanel, URGENT_DAYS, type TodoItem } from "./components/Today";
+import { PlayerPanel, QuestPanel, TodoPanel, type TodoItem } from "./components/Today";
 import { GearView } from "./components/Gear";
 import { StatsView } from "./components/Stats";
 import { LogTable } from "./components/LogTable";
 import { EditDialog, type EditTarget } from "./components/EditDialog";
+import { ApplyDialog, StatusDialog, type StatusTarget } from "./components/QuickDialogs";
 import { Confetti, Toast } from "./components/Effects";
 import { CommandMenu, useView } from "./components/Tabs";
 import { useBackend } from "./hooks/useBackend";
@@ -11,10 +12,10 @@ import { useCelebration } from "./hooks/useCelebration";
 import { useShield } from "./hooks/useShield";
 import { useToast } from "./hooks/useToast";
 import { addDays, dayDiff, deadlineIso, fmtDate, isoWeek, todayIso, weekday } from "./lib/dates";
-import { avgXpPerApp, badgeWeeks, gameState } from "./lib/game";
-import { recordStatus } from "./lib/history";
+import { badgeWeeks, gameState } from "./lib/game";
+import { appsText, savedText } from "./lib/labels";
 import { followups, presentStatuses, SNOOZE_DAYS, summary, weeklySeries } from "./lib/stats";
-import type { Application, ApplicationDoc } from "./lib/model";
+import type { Application, ApplicationDoc, Status } from "./lib/model";
 import { toCsv } from "./lib/csv";
 import { parseBackup, toBackup } from "./lib/backup";
 import { parseShare, splitAdTitle } from "./lib/share";
@@ -44,6 +45,12 @@ export default function App() {
     setToShields(true);
   };
   const [edit, setEdit] = useState<EditTarget | null>(null);
+  // The short dialogs resolve a promise when they close, so the list that opened one can move focus.
+  const [statusFor, setStatusFor] = useState<(StatusTarget & { done: (s: Status | null) => void }) | null>(null);
+  const [applyFor, setApplyFor] = useState<{ app: Application; done: (saved: boolean) => void } | null>(null);
+  const openStatus = (app: Application, preset?: Status) =>
+    new Promise<Status | null>((done) => setStatusFor({ app, preset, done }));
+  const openApply = (app: Application) => new Promise<boolean>((done) => setApplyFor({ app, done }));
   const [highlight, setHighlight] = useState<string | null>(null);
   const [notice, setNotice] = useState("");
   const { toast, show } = useToast();
@@ -62,7 +69,6 @@ export default function App() {
         .sort((x, y) => (x.deadline ?? "9999").localeCompare(y.deadline ?? "9999") || x.app.d.localeCompare(y.app.d)),
     [all, today],
   );
-  const urgent = todos.filter((t) => t.daysLeft != null && t.daysLeft >= 0 && t.daysLeft <= URGENT_DAYS).length;
   const game = useMemo(() => (apps ? gameState(list, goal, today) : null), [apps, list, goal, today]);
   const { arm, celebration } = useCelebration(game, pending);
   useEffect(() => {
@@ -87,15 +93,16 @@ export default function App() {
       throw e;
     }
   };
-  const saveApp = async (id: string, doc: ApplicationDoc) => {
-    arm();
+  /** `label` names the save in the XP message ("Merkitty haetuksi"). */
+  const saveApp = async (id: string, doc: ApplicationDoc, label = "") => {
+    arm(label);
     await store!.save(id, doc);
     flash(id);
   };
   /** A quick update from the Today lists; resolves to whether it was saved. */
-  const patch = (a: Application, p: Partial<ApplicationDoc>) =>
+  const patch = (a: Application, p: Partial<ApplicationDoc>, label = "") =>
     guard(async () => {
-      arm();
+      arm(label);
       await store!.update(a.id, { ...p, updatedAt: new Date().toISOString() });
       flash(a.id);
     }).then(
@@ -166,7 +173,7 @@ export default function App() {
         : "Hakemuksia ei ole vielä kirjattu."
       : pending
         ? "Tallennetaan…"
-        : `${list.length} hakemusta${todos.length ? `, ${todos.length} haettavaa` : ""} tallessa${canWrite ? "" : " · vain luku"}`;
+        : `${appsText(list.length)}${todos.length ? `, ${savedText(todos.length)}` : ""} tallessa${canWrite ? "" : " · vain luku"}`;
   }
 
   const has = all.length > 0;
@@ -175,7 +182,7 @@ export default function App() {
   const csv =
     backend?.downloads && has
       ? {
-          label: `Lataa CSV: kaikki ${list.length} ${list.length === 1 ? "hakemus" : "hakemusta"}${todos.length ? ` + ${todos.length} haettavaa` : ""}`,
+          label: `Lataa CSV: kaikki ${appsText(list.length)}${todos.length ? ` + ${savedText(todos.length)}` : ""}`,
           run: () => void exportCsv(),
         }
       : null;
@@ -207,12 +214,11 @@ export default function App() {
       </header>
 
       {backend?.demo && (
-        <p className="frame notice demo-banner">
-          <span>
-            <strong>Demo:</strong> hakemukset ovat keksittyjä. Kokeile vapaasti, sillä muutokset tallentuvat vain tähän
-            selaimeen.
-          </span>
-          <span className="demo-actions">
+        <div className="frame notice demo-banner">
+          <p>
+            <strong>Demo:</strong> keksityt hakemukset, muutokset tallentuvat vain tähän selaimeen.
+          </p>
+          <p className="demo-actions">
             <button
               type="button"
               className="linkbtn"
@@ -226,10 +232,10 @@ export default function App() {
               Palauta esimerkkidata
             </button>
             <a className="linkbtn" href={REPO_URL}>
-              Lähdekoodi GitHubissa
+              Lähdekoodi
             </a>
-          </span>
-        </p>
+          </p>
+        </div>
       )}
 
       {(state === "stale" || state === "snapshot") && statusText && (
@@ -244,15 +250,7 @@ export default function App() {
       )}
 
       <div className="layout">
-        {has && (
-          <CommandMenu
-            view={view}
-            onChange={setView}
-            followupCount={fu.due.length + urgent}
-            total={list.length}
-            onAdd={add}
-          />
-        )}
+        {has && <CommandMenu view={view} onChange={setView} total={list.length} onAdd={add} />}
         <main className="content">
           {!apps && <p className="sub">{statusText}</p>}
           {apps && !has && (
@@ -282,24 +280,24 @@ export default function App() {
                 <PlayerPanel
                   game={game}
                   goal={goal}
-                  avgXp={avgXpPerApp(list)}
                   canWrite={canWrite}
                   onGoal={(n) => guard(() => store!.setGoal(n))}
                   shield={shield}
                   onShields={openShields}
                 />
-                <TodoPanel
-                  items={todos}
-                  canWrite={canWrite}
-                  onApply={(a) => setEdit({ app: a, prefill: { status: "wait", d: today } })}
-                  onEdit={(a) => setEdit({ app: a })}
-                />
+                <TodoPanel items={todos} canWrite={canWrite} onApply={openApply} onEdit={(a) => setEdit({ app: a })} />
                 <QuestPanel
                   due={fu.due}
                   snoozed={fu.snoozed}
                   canWrite={canWrite}
-                  onReject={(a) => patch(a, { status: "no", events: recordStatus(a.events, "no", today) })}
-                  onSnooze={(a) => patch(a, { snoozeUntil: addDays(today, SNOOZE_DAYS) })}
+                  onReject={(a) => openStatus(a, "no").then((s) => s != null)}
+                  onSnooze={(a) => {
+                    const until = addDays(today, SNOOZE_DAYS);
+                    return patch(a, { snoozeUntil: until }).then((saved) => {
+                      if (saved) show("Muistutus asetettu", `${a.org} palaa seurattaviin ${fmtDate(until)}.`);
+                      return saved;
+                    });
+                  }}
                   onEdit={(a) => setEdit({ app: a })}
                 />
               </div>
@@ -344,6 +342,7 @@ export default function App() {
                   canWrite={canWrite}
                   highlight={highlight}
                   onEdit={(a) => setEdit({ app: a })}
+                  onStatus={(a) => openStatus(a)}
                   onCsv={csv}
                 />
               </div>
@@ -394,6 +393,28 @@ export default function App() {
         onSave={saveApp}
         onDelete={(id) => store!.remove(id)}
         onClose={() => setEdit(null)}
+      />
+      <StatusDialog
+        target={statusFor}
+        today={today}
+        apps={list}
+        goal={goal}
+        onSave={saveApp}
+        onDone={(s) => {
+          statusFor?.done(s);
+          setStatusFor(null);
+        }}
+        onMore={(app, status, eventDate) => setEdit({ app, prefill: { status, eventDate } })}
+      />
+      <ApplyDialog
+        app={applyFor?.app ?? null}
+        today={today}
+        onSave={saveApp}
+        onDone={(saved) => {
+          applyFor?.done(saved);
+          setApplyFor(null);
+        }}
+        onMore={(app, d) => setEdit({ app, prefill: { status: "wait", d } })}
       />
       <Toast
         toast={toast}

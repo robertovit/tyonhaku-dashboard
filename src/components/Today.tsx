@@ -1,6 +1,6 @@
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { fmtDate } from "../lib/dates";
-import { avatarItem, statusGain, XP_RULES, type GameState } from "../lib/game";
+import { avatarItem, statusGain, type GameState } from "../lib/game";
 import { deadlineLabel, URGENT_DAYS, waitLabel } from "../lib/labels";
 import type { Application } from "../lib/model";
 import type { Shield } from "../lib/shields";
@@ -11,13 +11,12 @@ import { PixelIcon } from "./Pixels";
 export { URGENT_DAYS };
 
 /**
- * Character sheet: avatar with the worn shield (and a link to change it in Varusteet), level, XP / week / streak
- * meters, and what the next level brings.
+ * Character sheet: avatar with the worn shield (and a link to change it in Varusteet), level, then three short
+ * lines with meters: XP to the next level, this week's applications against the goal, and the streak.
  */
 export function PlayerPanel({
   game,
   goal,
-  avgXp,
   canWrite,
   onGoal,
   shield,
@@ -25,7 +24,6 @@ export function PlayerPanel({
 }: {
   game: GameState;
   goal: number;
-  avgXp: number;
   canWrite: boolean;
   onGoal: (n: number) => Promise<void>;
   shield: Shield | undefined;
@@ -42,7 +40,6 @@ export function PlayerPanel({
   const w = game.weeks;
   const segs = Math.min(8, Math.max(4, w.current + 1));
   const missing = L.to - game.xp;
-  const apps = Math.max(1, Math.ceil(missing / Math.max(avgXp, 1)));
   return (
     <section className="frame player" aria-labelledby="playerH">
       <div
@@ -57,7 +54,9 @@ export function PlayerPanel({
         <div className="player-title">
           <h2 id="playerH">Hakija</h2>
           <span className="lvl">Tl {L.n}</span>
-          <span className="sub">{L.name}</span>
+          <span className="sub">
+            {L.name} · {game.xp} XP
+          </span>
         </div>
         <p className="gear-line">
           <span className="k">KILPI</span>
@@ -73,62 +72,55 @@ export function PlayerPanel({
             {shield ? "Vaihda kilpeä" : "Katso kilvet"}
           </a>
         </p>
-        <div className="stat-grid">
-          <span className="k">XP</span>
-          <div
-            className="meter"
-            role="progressbar"
-            aria-label="Seuraavaan tasoon"
-            aria-valuemin={L.from}
-            aria-valuemax={L.to}
-            aria-valuenow={game.xp}
-          >
-            <i style={{ width: `${pct}%` }} />
+        <div className="stats">
+          <div className="stat">
+            <span className="stat-text">
+              <b>{missing} XP</b> seuraavaan tasoon
+            </span>
+            <div
+              className="meter"
+              role="progressbar"
+              aria-label="XP seuraavaan tasoon"
+              aria-valuemin={L.from}
+              aria-valuemax={L.to}
+              aria-valuenow={game.xp}
+              aria-valuetext={`${missing} XP seuraavaan tasoon`}
+            >
+              <i style={{ width: `${pct}%` }} />
+            </div>
           </div>
-          <span>
-            {game.xp}
-            <span className="of"> / {L.to}</span>
-          </span>
-          <span className="k">VKO</span>
-          <div
-            className="meter int"
-            role="progressbar"
-            aria-label="Viikkotavoite"
-            aria-valuemin={0}
-            aria-valuemax={goal}
-            aria-valuenow={w.thisWeek}
-          >
-            <i style={{ width: `${Math.min((w.thisWeek / goal) * 100, 100)}%` }} />
+          <div className="stat">
+            <span className="stat-text">
+              Tällä viikolla{" "}
+              <b>
+                {w.thisWeek} / {goal}
+              </b>{" "}
+              {goal === 1 ? "hakemus" : "hakemusta"}
+            </span>
+            <div
+              className="meter int"
+              role="progressbar"
+              aria-label="Viikkotavoite"
+              aria-valuemin={0}
+              aria-valuemax={goal}
+              aria-valuenow={w.thisWeek}
+              aria-valuetext={`${w.thisWeek} / ${goal} hakemusta`}
+            >
+              <i style={{ width: `${Math.min((w.thisWeek / goal) * 100, 100)}%` }} />
+            </div>
           </div>
-          <span>
-            {w.thisWeek}
-            <span className="of"> / {goal}</span>
-          </span>
-          <span className="k">PUTKI</span>
-          <div className="segs" role="img" aria-label={`Putki ${w.current} viikkoa, paras ${w.best}`}>
-            {Array.from({ length: segs }, (_, i) => (
-              <i key={i} className={i < w.current ? "on" : undefined} />
-            ))}
+          <div className="stat">
+            <span className="stat-text">
+              Putki <b>{w.current} vk</b>
+              {w.best > w.current && <span className="sub"> · paras {w.best} vk</span>}
+            </span>
+            <div className="segs" role="img" aria-label={`Putki ${w.current} viikkoa, paras ${w.best}`}>
+              {Array.from({ length: segs }, (_, i) => (
+                <i key={i} className={i < w.current ? "on" : undefined} />
+              ))}
+            </div>
           </div>
-          <span>{w.current} vk</span>
         </div>
-      </div>
-      <div className="nextbox">
-        <span className="k">SEURAAVA TASO</span>
-        <span>
-          {L.n < 8 ? (
-            <>
-              Tl {L.n + 1} avaa <b>{avatarItem(L.n + 1)}</b>
-            </>
-          ) : (
-            <>
-              Tl {L.n + 1}: <b>Työnhaun legenda</b>
-            </>
-          )}
-        </span>
-        <span className="sub">
-          {missing} XP puuttuu · noin {apps} {apps === 1 ? "hakemus" : "hakemusta"}
-        </span>
         {canWrite ? <GoalInput goal={goal} onGoal={onGoal} /> : <span className="sub">Tavoite {goal} / vko</span>}
       </div>
     </section>
@@ -177,13 +169,42 @@ function GoalInput({ goal, onGoal }: { goal: number; onGoal: (n: number) => Prom
   );
 }
 
-/** How many follow-ups the Tehtävät list shows before "Näytä kaikki". */
+/** How many follow-ups the Seurattavat haut list shows before "Näytä kaikki". */
 export const QUESTS_SHOWN = 3;
 
 /**
- * Follow-ups as quests: a short list (the oldest first); a row opens its details and quick actions right under
- * it, the same on every screen size. When an action takes the row off the list, focus moves to the row that took
- * its place (or the one before, or the heading when the list is empty).
+ * Focus after a quick action that can take a row off a list: once the saved row has left, focus moves to the row
+ * that took its place (or the one before, or the heading when the list is empty). Rows carry `data-row`. When
+ * nothing was saved, focus stays where it is (a dialog gives it back to the button that opened it).
+ */
+function useRefocus(ids: string[], onMoved?: () => void) {
+  const listRef = useRef<HTMLUListElement>(null);
+  const headRef = useRef<HTMLHeadingElement>(null);
+  const [pending, setPending] = useState<{ id: string; order: string[] } | null>(null);
+  const [busy, setBusy] = useState(false);
+  useEffect(() => {
+    if (!pending || ids.includes(pending.id)) return;
+    setPending(null);
+    const row = (id: string) => listRef.current?.querySelector<HTMLElement>(`[data-row="${CSS.escape(id)}"]`);
+    const i = pending.order.indexOf(pending.id);
+    const next = [...pending.order.slice(i + 1), ...pending.order.slice(0, i).reverse()].map(row).find(Boolean);
+    onMoved?.();
+    (next ?? headRef.current)?.focus();
+  }, [pending, ids, onMoved]);
+  const run = async (id: string, act: () => Promise<boolean>) => {
+    const order = ids;
+    setBusy(true);
+    const saved = await act();
+    setBusy(false);
+    if (saved) setPending({ id, order });
+  };
+  return { listRef, headRef, run, busy };
+}
+
+/**
+ * Follow-ups: applications with no answer for three weeks, the longest wait first. A short list; a row opens its
+ * details and actions right under it, the same on every screen size. The main action is a reminder in two weeks;
+ * "Kirjaa hylkäys" opens the short status dialog with the rejection chosen, so the day it came can be set.
  */
 export function QuestPanel({
   due,
@@ -196,41 +217,17 @@ export function QuestPanel({
   due: Followup[];
   snoozed: Followup[];
   canWrite: boolean;
-  /** Resolve to whether the save went through. */
+  /** Resolve to whether something was saved. */
   onReject: (a: Application) => Promise<boolean>;
   onSnooze: (a: Application) => Promise<boolean>;
   onEdit: (a: Application) => void;
 }) {
   const [openId, setOpenId] = useState<string | null>(null);
   const [all, setAll] = useState(false);
-  const [busy, setBusy] = useState(false);
-  const [refocus, setRefocus] = useState<{ id: string; order: string[]; saved: boolean } | null>(null);
-  const listRef = useRef<HTMLUListElement>(null);
-  const headRef = useRef<HTMLHeadingElement>(null);
+  const ids = due.map((f) => f.app.id);
+  const closeRow = useCallback(() => setOpenId(null), []);
+  const { listRef, headRef, run, busy } = useRefocus(ids, closeRow);
   const shown = all ? due : due.slice(0, QUESTS_SHOWN);
-  useEffect(() => {
-    if (!refocus) return;
-    const row = (id: string) => listRef.current?.querySelector<HTMLButtonElement>(`[data-quest="${CSS.escape(id)}"]`);
-    // a failed save was rolled back: the row stays open and keeps the focus
-    if (!refocus.saved) {
-      setRefocus(null);
-      return void row(refocus.id)?.focus();
-    }
-    // saved: move on once the row has left the list
-    if (due.some((f) => f.app.id === refocus.id)) return;
-    setRefocus(null);
-    const i = refocus.order.indexOf(refocus.id);
-    const next = [...refocus.order.slice(i + 1), ...refocus.order.slice(0, i).reverse()].map(row).find(Boolean);
-    setOpenId(null);
-    (next ?? headRef.current)?.focus();
-  }, [refocus, due]);
-  const run = async (f: Followup, act: () => Promise<boolean>) => {
-    const order = due.map((x) => x.app.id);
-    setBusy(true);
-    const saved = await act();
-    setBusy(false);
-    setRefocus({ id: f.app.id, order, saved });
-  };
   // A rejection already in the history earns nothing again.
   const gain = (a: Application) => statusGain(a, "no");
   const when = (f: Followup) => `${f.since === f.app.d ? "Haettu" : "Haku päättyi"} ${fmtDate(f.since)}`;
@@ -238,13 +235,17 @@ export function QuestPanel({
     <section className="frame" aria-labelledby="questH">
       <div className="ph">
         <h2 id="questH" ref={headRef} tabIndex={-1}>
-          Tehtävät
+          Seurattavat haut
         </h2>
-        {due.length > 0 && <span className="count">{due.length}</span>}
-        <span className="sub">Odottaa vastausta yli 3 viikkoa · avoimet hakemukset eivät ole mukana</span>
+        {due.length > 0 && (
+          <span className="count" aria-label={`${due.length} seurattavaa`}>
+            {due.length}
+          </span>
+        )}
+        <span className="sub">Ei vastausta yli 3 viikkoon · avoimet hakemukset eivät ole mukana</span>
       </div>
       {due.length === 0 ? (
-        <p className="sub">Ei tehtäviä. Kaikki odottavat haut on käyty läpi.</p>
+        <p className="sub">Ei seurattavia. Kaikki odottavat haut on käyty läpi.</p>
       ) : (
         <ul className="q-list" ref={listRef}>
           {shown.map((f) => {
@@ -255,11 +256,12 @@ export function QuestPanel({
                 <button
                   type="button"
                   className="q-item"
-                  data-quest={f.app.id}
+                  data-row={f.app.id}
                   aria-expanded={open}
                   aria-controls={panel}
                   onClick={() => setOpenId(open ? null : f.app.id)}
                 >
+                  <PixelIcon name={open ? "down" : "right"} />
                   <span className="what">
                     <b>{f.app.org}</b>
                     {f.app.role && ` · ${f.app.role}`}
@@ -288,17 +290,17 @@ export function QuestPanel({
                           type="button"
                           className="btn sel"
                           disabled={busy}
-                          onClick={() => run(f, () => onReject(f.app))}
+                          onClick={() => void run(f.app.id, () => onSnooze(f.app))}
                         >
-                          Kuittaa ei valituksi {gain(f.app) > 0 && <span className="xp">+{gain(f.app)} XP</span>}
+                          Muistuta 2 viikon päästä
                         </button>
                         <button
                           type="button"
                           className="btn"
                           disabled={busy}
-                          onClick={() => run(f, () => onSnooze(f.app))}
+                          onClick={() => void run(f.app.id, () => onReject(f.app))}
                         >
-                          Muistuta 2 vk päästä
+                          Kirjaa hylkäys {gain(f.app) > 0 && <span className="xp">+{gain(f.app)} XP</span>}
                         </button>
                         <button type="button" className="btn" onClick={() => onEdit(f.app)}>
                           Muokkaa
@@ -329,7 +331,7 @@ export function QuestPanel({
       )}
       {snoozed.length > 0 && (
         <p className="snoozed">
-          Siirretty myöhemmäksi: {snoozed.map(({ app }) => `${app.org} (${fmtDate(app.snoozeUntil)})`).join(", ")}
+          Muistutus myöhemmin: {snoozed.map(({ app }) => `${app.org} (${fmtDate(app.snoozeUntil)})`).join(", ")}
         </p>
       )}
     </section>
@@ -341,7 +343,10 @@ export interface TodoItem {
   deadline: string | null;
   daysLeft: number | null;
 }
-/** Saved ads not applied for yet, soonest deadline first. */
+/**
+ * Saved places not applied for yet, soonest deadline first. The heading counts the deadlines that are near.
+ * "Merkitse haetuksi" opens a short confirmation (send date); the XP shows after the save.
+ */
 export function TodoPanel({
   items,
   canWrite,
@@ -350,19 +355,32 @@ export function TodoPanel({
 }: {
   items: TodoItem[];
   canWrite: boolean;
-  onApply: (a: Application) => void;
+  /** Resolves to whether the place was marked as applied. */
+  onApply: (a: Application) => Promise<boolean>;
   onEdit: (a: Application) => void;
 }) {
-  if (!items.length) return null;
+  const { listRef, headRef, run, busy } = useRefocus(items.map((t) => t.app.id));
+  // Shown once there has been something to show, so focus has a place when the last one is marked applied.
+  const [seen, setSeen] = useState(items.length > 0);
+  if (items.length && !seen) setSeen(true);
+  if (!seen) return null;
   const urgent = items.filter((t) => t.daysLeft != null && t.daysLeft >= 0 && t.daysLeft <= URGENT_DAYS).length;
   return (
     <section className="frame" aria-labelledby="todoH">
       <div className="ph">
-        <h2 id="todoH">Haettavat</h2>
-        {urgent > 0 && <span className="count">{urgent}</span>}
-        <span className="sub">Talteen otetut ilmoitukset, määräaika ensin</span>
+        <h2 id="todoH" ref={headRef} tabIndex={-1}>
+          Tallennetut paikat
+        </h2>
+        {urgent > 0 && (
+          <span className="soon">
+            <PixelIcon name="calendar" />
+            {urgent} {urgent === 1 ? "päättyy" : "päättyvät"} {URGENT_DAYS} pv sisällä
+          </span>
+        )}
+        <span className="sub">Ilmoitukset, joihin aiot hakea · määräaika ensin</span>
       </div>
-      <ul className="todos">
+      {!items.length && <p className="sub">Ei tallennettuja paikkoja. Kaikki on haettu.</p>}
+      <ul className="todos" ref={listRef}>
         {items.map((t) => (
           <li key={t.app.id} className={`todo${t.daysLeft != null && t.daysLeft < 0 ? " past" : ""}`}>
             <span className="what">
@@ -380,8 +398,14 @@ export function TodoPanel({
             <DeadlineChip item={t} />
             {canWrite && (
               <span className="todo-actions">
-                <button type="button" className="btn sel" onClick={() => onApply(t.app)}>
-                  Merkitse haetuksi <span className="xp">+{XP_RULES.application} XP</span>
+                <button
+                  type="button"
+                  className="btn sel"
+                  data-row={t.app.id}
+                  disabled={busy}
+                  onClick={() => void run(t.app.id, () => onApply(t.app))}
+                >
+                  Merkitse haetuksi
                 </button>
                 <button type="button" className="btn" onClick={() => onEdit(t.app)}>
                   Muokkaa

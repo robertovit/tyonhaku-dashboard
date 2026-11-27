@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { dayDiff, deadlineIso } from "./dates";
 import { milestoneProgress } from "./game";
-import { deadlineLabel, waitLabel } from "./labels";
+import { appsText, deadlineLabel, savedText, sentLabel, waitLabel } from "./labels";
 
 const today = "2026-11-27";
 const label = (end: string) => {
@@ -32,5 +32,15 @@ describe("application milestone progress", () => {
     expect(milestoneProgress(23)).toMatchObject({ milestone: { id: "quarter", required: 25 }, total: 23, done: false });
     expect(milestoneProgress(25)).toMatchObject({ milestone: { id: "fifty", name: "Puolisataa" }, done: false });
     expect(milestoneProgress(61)).toMatchObject({ milestone: { id: "fifty" }, total: 61, done: true });
+  });
+});
+
+describe("log and status texts", () => {
+  it("formats the send date and counts", () => {
+    expect(sentLabel("2026-11-03")).toBe("Haettu 3.11.");
+    expect(appsText(1)).toBe("1 hakemus");
+    expect(appsText(12)).toBe("12 hakemusta");
+    expect(savedText(1)).toBe("1 tallennettu paikka");
+    expect(savedText(3)).toBe("3 tallennettua paikkaa");
   });
 });

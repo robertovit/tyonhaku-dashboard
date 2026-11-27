@@ -59,7 +59,7 @@ export function demoSeed(today: string): Docs {
     snoozeUntil: "",
     events,
   });
-  // Saved ads (Haettavat) with deadlines in a few days, and two applications sent this week (weekly goal 2/3).
+  // Saved places (Tallennetut paikat) with deadlines in a few days, and two applications sent this week (weekly goal 2/3).
   const monday = addDays(today, -weekday(today));
   return [
     ...apps,
