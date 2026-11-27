@@ -79,11 +79,21 @@ A dark JRPG menu: framed panels (`.frame`), DotGothic16 for headings and numbers
 M PLUS Rounded 1c for body text, lime accent. Dark is the designed theme; the light theme is derived from it.
 The designs are on the owner's Design canvas (kept outside the repo).
 Views are switched from the command menu (`CommandMenu` in `Tabs.tsx`: Tänään, Varusteet, Hakuloki, Tilastot with
-pixel icons from `Pixels.tsx`, then "+ Lisää hakemus"), which becomes a bottom bar under 720 px. The open view is in
-the URL hash (`#varusteet`; `useView` pushes history entries and follows back/forward). Tänään: character with the worn
-shield, saved ads (`deadlineLabel`, `lib/labels.ts`) and follow-ups (three first, a row opens its quick actions under
-it). Varusteet (`Gear.tsx`): shields, application milestones, other badges, "Aiemmat merkit". Tilastot has the
-weekly chart; Hakuloki has the CSV download.
+pixel icons from `Pixels.tsx`, then "+ Lisää hakemus"), which becomes a bottom bar under 720 px (`PHONE` in
+`hooks/useMedia.ts`). The open tab is marked by background, color and `aria-selected`; arrowheads (▶▼ and the pixel
+`right`/`down` chevrons) only mark controls that open content below them. Calendar = deadline, clock = waiting time.
+The open view is in the URL hash (`#varusteet`; `useView` pushes history entries and follows back/forward).
+Tänään: character with the worn shield and three meter lines, "Tallennetut paikat" (`deadlineLabel`,
+`lib/labels.ts`) and "Seurattavat haut" (three first; a row opens "Muistuta 2 viikon päästä", "Kirjaa hylkäys",
+"Muokkaa"). Varusteet (`Gear.tsx`): shields with "Ota käyttöön" beside the preview, application milestones, other
+badges, "Aiemmat merkit". Tilastot has the weekly chart; Hakuloki (`LogTable.tsx`) has the CSV download and shows
+cards on a phone and a table on wider screens (same rows, order and filter).
+Short dialogs (`QuickDialogs.tsx`): "Päivitä tila" (new status + the day the news came, saved through
+`recordStatus` like the edit dialog) and "Merkitse haetuksi" (send date only). App opens them as promises, so the
+list that opened one can move focus after a save. Saves pass a label to `arm()`, and the celebration toast reads
+"Merkitty haetuksi · +33 XP". The edit dialog keeps the extra fields under "Lisätiedot" (opened automatically for a
+stored application, a field with an error or one filled by the assistant). On a phone dialogs are full screen with
+a sticky save row; `main.tsx` keeps `--vvh` at the visible height above the keyboard.
 The avatar is a 16×16 pixel character (`Avatar.tsx`) that gains an item per level and can wear an earned shield;
 the app icons are drawn from it.
 
@@ -102,7 +112,7 @@ and always keeps the current status in the history. `lib/history.ts`: `recordSta
 saves (edit dialog with its day field, the Today quick rejection); taking a stage out (`withoutStage`) is the
 deliberate correction under "Korjaa historiaa" in the dialog. The log row opens the same timeline. The server's
 `PUT` keeps the stored `events` when an older installed app sends a document without them.
-`App.tsx` splits the list: saved ads go to the Haettavat panel and everything else (game, stats, log,
+`App.tsx` splits the list: saved ads go to the Tallennetut paikat panel and everything else (game, stats, log,
 follow-ups) only sees sent applications. Open applications (`type: "open"`) are excluded from follow-up reminders.
 
 ## Game rules

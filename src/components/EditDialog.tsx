@@ -20,6 +20,7 @@ import {
 } from "../lib/model";
 import { UserFacingError, type AdFields, type Assistant } from "../lib/store";
 import { HistoryBox } from "./History";
+import { PixelIcon } from "./Pixels";
 
 interface Draft {
   status: Status;
@@ -51,6 +52,9 @@ const LABELS: Record<string, string> = {
   n: "hakijamäärä",
   type: "tyyppi",
 };
+
+/** Fields under "Lisätiedot": the date that does not fit the status, then the details of the application. */
+const moreKeys = (status: Status) => [status === "todo" ? "d" : "end", "type", "cv", "att", "how", "n", "note"];
 
 const fromApp = (a: Application | null, today: string): Draft =>
   a
@@ -103,7 +107,7 @@ function buildDoc(draft: Draft, app: Application | null, now: string): Applicati
 export interface EditTarget {
   app: Application | null; // null = new application
   /** Fields to start from, e.g. a shared ad or "mark as applied" on a saved one. */
-  prefill?: Partial<Pick<Draft, "status" | "d" | "url" | "role" | "org">>;
+  prefill?: Partial<Pick<Draft, "status" | "d" | "url" | "role" | "org" | "eventDate">>;
   /** A note shown at the top of the dialog, e.g. why a shared ad's details could not be read. */
   notice?: string;
 }
@@ -134,6 +138,8 @@ export function EditDialog({
   const [saving, setSaving] = useState(false);
   const [armedDelete, setArmedDelete] = useState(false);
   const [typeTouched, setTypeTouched] = useState(false);
+  /** "Lisätiedot" open: always when editing a stored application, for a new one only when needed. */
+  const [more, setMore] = useState(false);
   const firstField = useRef<HTMLInputElement>(null);
   const nField = useRef<HTMLInputElement>(null);
   const app = target?.app ?? null;
@@ -151,9 +157,15 @@ export function EditDialog({
       setError("");
       setArmedDelete(false);
       setTypeTouched(!!target.app);
+      // open for a stored application, and for "Lisää muut tiedot" when marking a saved place as applied
+      setMore(!!target.app && (target.app.status !== "todo" || target.prefill?.status === "wait"));
       d.showModal();
       setTimeout(
-        () => (target.app && target.prefill?.status !== "wait" ? nField.current : firstField.current)?.focus(),
+        () =>
+          (target.app && target.app.status !== "todo" && target.prefill?.status !== "wait"
+            ? nField.current
+            : firstField.current
+          )?.focus(),
         0,
       );
     } else if (!target && d.open) d.close();
@@ -195,18 +207,29 @@ export function EditDialog({
     }
     setDraft(next);
     setFilled(new Set(got));
+    if (got.some((k) => moreKeys(next.status).includes(k))) setMore(true);
     return got.map((k) => LABELS[k]);
   };
 
+  /** Shows the error and takes focus to the field, opening "Lisätiedot" when the field is in it. */
+  const fail = (msg: string, field: string) => {
+    setError(msg);
+    if (moreKeys(draft.status).includes(field)) setMore(true);
+    setTimeout(() => document.getElementById(`f-${field}`)?.focus(), 0);
+  };
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
     const org = draft.org.trim();
-    if (!org) return setError("Kirjoita työnantajan nimi.");
-    if (!/^\d{4}-\d{2}-\d{2}$/.test(draft.d)) return setError("Valitse hakupäivä.");
+    if (!org) return fail("Kirjoita työnantajan nimi.", "org");
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(draft.d))
+      return fail(
+        draft.status === "todo" ? "Valitse päivä, jolloin otit ilmoituksen talteen." : "Valitse hakupäivä.",
+        "d",
+      );
     const n = draft.n.trim() === "" ? null : Math.round(Number(draft.n));
-    if (n != null && !(n >= 0)) return setError("Hakijoiden määrän pitää olla luku.");
+    if (n != null && !(n >= 0)) return fail("Hakijoiden määrän pitää olla luku.", "n");
     const url = draft.url.trim();
-    if (url && !/^https?:\/\//.test(url)) return setError("Linkin pitää alkaa https://");
+    if (url && !/^https?:\/\//.test(url)) return fail("Linkin pitää alkaa https://", "url");
     const events = recordStatus(draft.events, draft.status, draft.eventDate);
     const early = events.find((e) => e.d && e.d < draft.d);
     if (early)
@@ -241,9 +264,32 @@ export function EditDialog({
       : app
         ? "Muokkaa hakemusta"
         : draft.status === "todo"
-          ? "Uusi haettava"
+          ? "Uusi tallennettu paikka"
           : "Uusi hakemus";
   const f = (k: string, size = "") => `field${size ? ` ${size}` : ""}${filled.has(k) ? " filled" : ""}`;
+  // The date that fits the status stays in view: the send date for an application, the deadline for a saved ad.
+  const todo = draft.status === "todo";
+  const sentField = (
+    <div className="field s" key="d">
+      <label htmlFor="f-d">{todo ? "Otettu talteen" : "Haettu"}</label>
+      <input id="f-d" type="date" value={draft.d} onChange={(e) => set("d", e.target.value)} />
+    </div>
+  );
+  const endField = (
+    <div className={f("end", "s")} key="end">
+      <label htmlFor="f-end">Haku päättyy</label>
+      <input
+        id="f-end"
+        type="text"
+        placeholder="esim. 31.10. tai jatkuva haku"
+        value={draft.end}
+        onChange={(e) => set("end", e.target.value)}
+      />
+    </div>
+  );
+  const moreFilled = moreKeys(draft.status).filter(
+    (k) => k !== "type" && k !== "d" && String(draft[k as keyof Draft]).trim(),
+  ).length;
   // The stage this save adds to the history; or a hint when the chosen stage is there already.
   const adds = newStage(draft);
   const already = !adds && isStage(draft.status) && app?.status !== draft.status;
@@ -298,78 +344,18 @@ export function EditDialog({
                     onChange={(e) => set("role", e.target.value)}
                   />
                 </div>
-                <div className="field s">
-                  <label htmlFor="f-d">{draft.status === "todo" ? "Lisätty" : "Haettu"}</label>
-                  <input id="f-d" type="date" value={draft.d} onChange={(e) => set("d", e.target.value)} />
-                </div>
-                <div className={f("end", "s")}>
-                  <label htmlFor="f-end">Haku päättyy</label>
-                  <input
-                    id="f-end"
-                    type="text"
-                    placeholder="esim. 31.10. tai jatkuva haku"
-                    value={draft.end}
-                    onChange={(e) => set("end", e.target.value)}
-                  />
-                </div>
-                <div className={f("type", "m")}>
-                  <label htmlFor="f-type">Tehtävätyyppi</label>
-                  <select
-                    id="f-type"
-                    value={draft.type}
-                    onChange={(e) => {
-                      setTypeTouched(true);
-                      set("type", e.target.value as JobType);
-                    }}
-                  >
-                    {(Object.keys(TYPES) as JobType[]).map((k) => (
-                      <option key={k} value={k}>
-                        {TYPES[k]}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-                <div className={f("how", "m")}>
-                  <label htmlFor="f-how">Hakutapa</label>
-                  <input
-                    id="f-how"
-                    type="text"
-                    list="howList"
-                    placeholder="Nettilomake, sähköposti…"
-                    value={draft.how}
-                    onChange={(e) => set("how", e.target.value)}
-                  />
-                </div>
-                <div className={f("att", "m")}>
-                  <label htmlFor="f-att">Liitteet</label>
-                  <input
-                    id="f-att"
-                    type="text"
-                    placeholder="CV, saatekirje"
-                    value={draft.att}
-                    onChange={(e) => set("att", e.target.value)}
-                  />
-                </div>
-                <div className="field m">
-                  <label htmlFor="f-cv">CV-versio</label>
-                  <input
-                    id="f-cv"
-                    type="text"
-                    placeholder="räätälöidyn CV:n nimi"
-                    value={draft.cv}
-                    onChange={(e) => set("cv", e.target.value)}
-                  />
-                </div>
                 <div className={f("url", "full")}>
                   <label htmlFor="f-url">Ilmoituksen linkki</label>
                   <input
                     id="f-url"
                     type="url"
+                    inputMode="url"
                     placeholder="https://"
                     value={draft.url}
                     onChange={(e) => set("url", e.target.value)}
                   />
                 </div>
+                {todo ? endField : sentField}
               </div>
               <fieldset className="status">
                 <legend>Tila</legend>
@@ -418,38 +404,103 @@ export function EditDialog({
               {app && app.status !== "todo" && (
                 <HistoryBox draft={draft} onFix={(fix) => setDraft((p) => ({ ...p, ...fix }))} />
               )}
-              <div className="fgrid">
-                <div className={f("n", "s")}>
-                  <label htmlFor="f-n">Hakijoiden määrä</label>
-                  <input
-                    ref={nField}
-                    id="f-n"
-                    type="number"
-                    min={0}
-                    inputMode="numeric"
-                    placeholder="ei ilmoitettu"
-                    value={draft.n}
-                    onChange={(e) => set("n", e.target.value)}
-                  />
-                </div>
-                <label className="check field auto">
-                  <input type="checkbox" checked={draft.nPlus} onChange={(e) => set("nPlus", e.target.checked)} />
-                  <span>
-                    Vähintään <span className="sr">(esim. 500+)</span>
-                    <span aria-hidden="true">(500+)</span>
+              <details
+                className="more-fields"
+                open={more}
+                onToggle={(e) => setMore((e.target as HTMLDetailsElement).open)}
+              >
+                <summary>
+                  <PixelIcon name="right" />
+                  <PixelIcon name="down" />
+                  Lisätiedot
+                  <span className="sub">
+                    {moreFilled ? `${moreFilled} täytetty` : "CV-versio, liitteet, hakutapa, hakijamäärä"}
                   </span>
-                </label>
-                <div className="field" style={{ flexGrow: 3 }}>
-                  <label htmlFor="f-note">Lisätieto lopputuloksesta</label>
-                  <input
-                    id="f-note"
-                    type="text"
-                    placeholder="Esim. haastattelu 3.10., palaute, sijoitus"
-                    value={draft.note}
-                    onChange={(e) => set("note", e.target.value)}
-                  />
+                </summary>
+                <div className="fgrid">
+                  {todo ? sentField : endField}
+                  <div className={f("type", "m")}>
+                    <label htmlFor="f-type">Tehtävätyyppi</label>
+                    <select
+                      id="f-type"
+                      value={draft.type}
+                      onChange={(e) => {
+                        setTypeTouched(true);
+                        set("type", e.target.value as JobType);
+                      }}
+                    >
+                      {(Object.keys(TYPES) as JobType[]).map((k) => (
+                        <option key={k} value={k}>
+                          {TYPES[k]}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                  <div className="field m">
+                    <label htmlFor="f-cv">CV-versio</label>
+                    <input
+                      id="f-cv"
+                      type="text"
+                      placeholder="räätälöidyn CV:n nimi"
+                      value={draft.cv}
+                      onChange={(e) => set("cv", e.target.value)}
+                    />
+                  </div>
+                  <div className={f("att", "m")}>
+                    <label htmlFor="f-att">Liitteet</label>
+                    <input
+                      id="f-att"
+                      type="text"
+                      placeholder="CV, saatekirje"
+                      value={draft.att}
+                      onChange={(e) => set("att", e.target.value)}
+                    />
+                  </div>
+                  <div className={f("how", "m")}>
+                    <label htmlFor="f-how">Hakutapa</label>
+                    <input
+                      id="f-how"
+                      type="text"
+                      list="howList"
+                      placeholder="Nettilomake, sähköposti…"
+                      value={draft.how}
+                      onChange={(e) => set("how", e.target.value)}
+                    />
+                  </div>
                 </div>
-              </div>
+                <div className="fgrid">
+                  <div className={f("n", "s")}>
+                    <label htmlFor="f-n">Hakijoiden määrä</label>
+                    <input
+                      ref={nField}
+                      id="f-n"
+                      type="number"
+                      min={0}
+                      inputMode="numeric"
+                      placeholder="ei ilmoitettu"
+                      value={draft.n}
+                      onChange={(e) => set("n", e.target.value)}
+                    />
+                  </div>
+                  <label className="check field auto">
+                    <input type="checkbox" checked={draft.nPlus} onChange={(e) => set("nPlus", e.target.checked)} />
+                    <span>
+                      Vähintään <span className="sr">(esim. 500+)</span>
+                      <span aria-hidden="true">(500+)</span>
+                    </span>
+                  </label>
+                  <div className="field" style={{ flexGrow: 3 }}>
+                    <label htmlFor="f-note">Lisätieto lopputuloksesta</label>
+                    <input
+                      id="f-note"
+                      type="text"
+                      placeholder="Esim. haastattelu 3.10., palaute, sijoitus"
+                      value={draft.note}
+                      onChange={(e) => set("note", e.target.value)}
+                    />
+                  </div>
+                </div>
+              </details>
             </div>
             <Reward draft={draft} app={app} apps={apps} goal={goal} today={today} />
           </div>
@@ -526,7 +577,7 @@ function Reward(p: PreviewProps) {
   const segs = Math.min(p.goal, 10);
   const left = p.goal - w.thisWeek - 1;
   const hint = todo
-    ? "Haettava ilmoitus ei vielä tuo XP:tä. Se tulee, kun merkitset hakemuksen haetuksi."
+    ? "Tallennettu paikka ei vielä tuo XP:tä. Se tulee, kun merkitset hakemuksen haetuksi."
     : !thisWeek
       ? null
       : left > 0
@@ -646,7 +697,6 @@ function AiFill({
         />
         <div className="ai-row">
           <button type="button" className="btn sel" disabled={busy} onClick={() => void run()}>
-            <span className="ptr" aria-hidden="true" />
             {busy ? "Luetaan…" : "Täytä kentät"}
           </button>
           {busy && (

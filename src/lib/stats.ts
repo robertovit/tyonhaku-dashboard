@@ -130,7 +130,7 @@ export function funnel(apps: Application[]) {
   return [
     { key: "haettu", label: "Haettu", value: apps.length },
     { key: "vastaus", label: "Vastaus saatu", value: apps.filter(gotAnswer).length },
-    { key: "haastattelu", label: "Haastattelu", value: apps.filter(hadInterview).length },
+    { key: "haastattelu", label: "Edennyt haastatteluun", value: apps.filter(hadInterview).length },
     { key: "tarjous", label: "Tarjous", value: apps.filter(hadOffer).length },
   ];
 }

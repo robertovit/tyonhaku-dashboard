@@ -138,4 +138,17 @@ describe("when the unlock is shown", () => {
     expect(await run(true)).toEqual([]);
     expect(await run(false)).toEqual([expect.objectContaining({ title: "Vahvistettu kilpi avattu", confetti: 0 })]);
   });
+  it("names the save in the message: the XP that came true, or the shield with it", () => {
+    const one = sent(0);
+    expect(celebrationFor(g([one]), g([setStatus(one, "no")]), "Hylkäys kirjattu")).toMatchObject({
+      title: "Kolhiintunut kilpi avattu",
+      text: expect.stringMatching(/^Hylkäys kirjattu · \+3 XP/),
+    });
+    const ten = apps(10);
+    const last = ten.at(-1)!;
+    const after = [...ten.slice(0, -1), setStatus(last, "int")];
+    expect(celebrationFor(g(ten), g(after), "Haastattelu kirjattu")?.title).toBe("Haastattelu kirjattu · +50 XP");
+    // nothing gained and no shield: still nothing to show
+    expect(celebrationFor(g(ten), g(ten), "Tila päivitetty")).toBeNull();
+  });
 });

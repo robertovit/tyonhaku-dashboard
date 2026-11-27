@@ -29,3 +29,11 @@ export function deadlineLabel(
 
 /** "Odottanut 47 pv" */
 export const waitLabel = (days: number) => `Odottanut ${days} pv`;
+
+/** "Haettu 3.11." (the send date of an application) */
+export const sentLabel = (d: string) => `Haettu ${fmtDate(d)}`;
+
+/** "1 hakemus" / "3 hakemusta" */
+export const appsText = (n: number) => `${n} ${n === 1 ? "hakemus" : "hakemusta"}`;
+/** "1 tallennettu paikka" / "3 tallennettua paikkaa" */
+export const savedText = (n: number) => `${n} ${n === 1 ? "tallennettu paikka" : "tallennettua paikkaa"}`;

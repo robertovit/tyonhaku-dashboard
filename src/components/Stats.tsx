@@ -32,7 +32,11 @@ export function StatsView({
       small: `${Math.round((s.answered / s.total) * 100)} %`,
       l: "vastausta saatu",
     },
-    { tag: "HAASTATTELUT", v: s.interviews.length, l: ints.length ? ints.join(", ") : "ei vielä haastatteluja" },
+    {
+      tag: "EDENNYT HAASTATTELUUN",
+      v: s.interviews.length,
+      l: ints.length ? ints.join(", ") : "ei vielä haastatteluja",
+    },
     { tag: "KILPAILU", v: s.medianN ?? "–", l: `hakijaa per paikka (mediaani, ${s.knownN} hakua)` },
   ];
   return (
@@ -65,14 +69,14 @@ export function StatsView({
                 className={`sw${s.counts[k] ? "" : " empty"}`}
                 style={s.counts[k] ? { background: STATUS[k].color } : {}}
               />
-              {STATUS[k].label} <b>{s.counts[k]}</b>
+              {k === "int" ? "Haastatteluvaiheessa" : STATUS[k].label} <b>{s.counts[k]}</b>
             </span>
           ))}
         </div>
         <div className="divider" />
         <span className="k-label">SUPPILO</span>
         <HBarChart
-          ariaLabel="Suppilo: haettu, vastaus saatu, haastattelu, tarjous"
+          ariaLabel="Suppilo: haettu, vastaus saatu, edennyt haastatteluun, tarjous"
           rows={funnel(apps).map((r) => ({
             key: r.key,
             label: <b>{r.label}</b>,

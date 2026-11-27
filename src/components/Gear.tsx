@@ -15,8 +15,8 @@ import { ShieldIcon } from "./Shield";
 const earnedText = (week: number | undefined) => (week ? `Ansaittu vko ${week}` : "Ansaittu");
 
 /**
- * Varusteet: the character preview and the three shields (pick one to preview, confirm with one shared
- * "Ota käyttöön"), then the application milestones, the other effort badges and, folded away, the earlier badges.
+ * Varusteet: the character preview with the one shared "Ota käyttöön" beside it, and the three shields (pick one
+ * to preview; a locked one can be previewed too and shows how it is earned), then the application milestones, the other effort badges and, folded away, the earlier badges.
  */
 export function GearView({
   game,
@@ -84,15 +84,45 @@ function ShieldsPanel({
           >
             <Avatar level={L.n} shield={preview.id} />
           </div>
-          <dl className="preview-text">
-            <dt>ESIKATSELU</dt>
-            <dd>
-              {preview.name}
-              {!open && <span className="sub"> (lukittu)</span>}
-            </dd>
-            <dt>KÄYTÖSSÄ</dt>
-            <dd className={shield ? undefined : "sub"}>{shield ? shield.name : "Ei kilpeä"}</dd>
-          </dl>
+          <div className="preview-side">
+            <dl className="preview-text">
+              <dt>ESIKATSELU</dt>
+              <dd>
+                {preview.name}
+                {!open && <span className="sub"> (lukittu)</span>}
+              </dd>
+              <dt>KÄYTÖSSÄ</dt>
+              <dd className={shield ? undefined : "sub"}>{shield ? shield.name : "Ei kilpeä"}</dd>
+            </dl>
+            <div className="armory-actions">
+              <button
+                type="button"
+                className="btn primary"
+                disabled={!open || worn}
+                onClick={() => {
+                  onEquip(preview.id);
+                  setSaid(`${preview.name} otettu käyttöön.`);
+                }}
+              >
+                Ota käyttöön
+              </button>
+              {shield && (
+                <button
+                  type="button"
+                  className="btn"
+                  onClick={() => {
+                    setSaid(`${shield.name} poistettu käytöstä.`);
+                    onEquip(null);
+                  }}
+                >
+                  Poista käytöstä
+                </button>
+              )}
+            </div>
+          </div>
+          <p className="sub armory-hint" aria-live="polite">
+            {said || hint}
+          </p>
         </div>
         <div className="armory-main">
           <fieldset className="shield-cards">
@@ -137,39 +167,11 @@ function ShieldsPanel({
                       {game.no} / {s.required}
                     </span>
                   )}
-                  {s.id === previewId && <span className="picked">▶ Esikatselussa</span>}
+                  {s.id === previewId && <span className="picked">Esikatselussa</span>}
                 </label>
               );
             })}
           </fieldset>
-          <div className="armory-actions">
-            <button
-              type="button"
-              className="btn primary"
-              disabled={!open || worn}
-              onClick={() => {
-                onEquip(preview.id);
-                setSaid(`${preview.name} otettu käyttöön.`);
-              }}
-            >
-              Ota käyttöön
-            </button>
-            {shield && (
-              <button
-                type="button"
-                className="btn"
-                onClick={() => {
-                  setSaid(`${shield.name} poistettu käytöstä.`);
-                  onEquip(null);
-                }}
-              >
-                Poista käytöstä
-              </button>
-            )}
-          </div>
-          <p className="sub armory-hint" aria-live="polite">
-            {said || hint}
-          </p>
         </div>
       </div>
     </section>
