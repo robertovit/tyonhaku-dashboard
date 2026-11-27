@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { allowedAdUrl, extractTitle, fetchAd, linkedinJobId, parseLinkedinPosting } from "./adTitle";
 
 const page = (body: string) => new Response(body, { headers: { "content-type": "text/html" } });
@@ -73,6 +73,27 @@ describe("ad lookup", () => {
 
     const blocked = via(new Response("", { status: 403 }), new Response("", { status: 403 }));
     expect((await fetchAd(start, blocked.f)).reason).toBe("www.linkedin.com vastasi 403");
+  });
+
+  it("retries LinkedIn's random 429s a few times", async () => {
+    vi.useFakeTimers();
+    try {
+      const start = allowedAdUrl("https://www.linkedin.com/jobs/view/4493123456/")!;
+      const limited = () => new Response("", { status: 429 });
+      const lucky = via(limited(), limited(), page(GUEST));
+      const got = fetchAd(start, lucky.f);
+      await vi.runAllTimersAsync();
+      expect((await got).role).toBe("Data-analyytikko & kehittäjä");
+      expect(lucky.urls).toHaveLength(3);
+
+      const unlucky = via(limited(), limited(), limited(), limited(), page("<title>ei haeta</title>"));
+      const none = fetchAd(start, unlucky.f);
+      await vi.runAllTimersAsync();
+      expect((await none).reason).toBe("www.linkedin.com vastasi 429");
+      expect(unlucky.urls).toHaveLength(4);
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   it("follows redirects only to known sites, and not to a login wall", async () => {

@@ -65,14 +65,16 @@ export interface AdInfo {
 
 const LOGIN_WALL = /^\/(authwall|login|signup|uas\/login|checkpoint)/i;
 const wait = (ms: number) => new Promise((ok) => setTimeout(ok, ms));
+/** Pauses before each retry after "429 too many requests" (all within the 8 s budget). */
+const RETRY_WAITS = [500, 1000, 1500];
 
 /** The start of an HTML page, or why it could not be read. Follows up to 3 redirects, each to a known site,
- *  and retries once after "429 too many requests". */
+ *  and retries a few times after "429 too many requests". */
 async function getPage(
   start: URL,
   fetcher: typeof fetch,
   signal: AbortSignal,
-): Promise<{ html: string } | { reason: string }> {
+): Promise<{ html: string } | { reason: string; limited?: boolean }> {
   let url = start;
   for (let hop = 0, tries = 0; hop < 4;) {
     if (LOGIN_WALL.test(url.pathname)) return { reason: `${url.hostname} vaatii kirjautumisen` };
@@ -89,11 +91,12 @@ async function getPage(
       hop++;
       continue;
     }
-    if (r.status === 429 && tries++ === 0) {
-      await wait(900);
+    // LinkedIn answers 429 at random (even to single requests), so a few spaced retries usually get through.
+    if (r.status === 429 && tries < RETRY_WAITS.length) {
+      await wait(RETRY_WAITS[tries++]);
       continue;
     }
-    if (!r.ok) return { reason: `${url.hostname} vastasi ${r.status}` };
+    if (!r.ok) return { reason: `${url.hostname} vastasi ${r.status}`, limited: r.status === 429 };
     if (!(r.headers.get("content-type") ?? "").includes("html")) return { reason: "ei HTML-sivu" };
     return { html: await readStart(r) };
   }
@@ -133,7 +136,9 @@ export async function fetchAd(start: URL, fetcher: typeof fetch = fetch): Promis
       const { role, org } = parseLinkedinPosting(page.html);
       if (role) return { title: "", role, org, reason: "" };
       reason = "LinkedIn ei antanut ilmoituksen tietoja";
-    } else reason = page.reason;
+    } else if (page.limited)
+      return { title: "", role: "", org: "", reason: page.reason }; // the page is limited too
+    else reason = page.reason;
   }
   const page = await getPage(start, fetcher, signal);
   if ("reason" in page) return { title: "", role: "", org: "", reason: reason || page.reason };

@@ -44,7 +44,7 @@ Components never touch `fetch` directly.
   `api/applications/:id` – `PUT` set, `PATCH` merge, `DELETE`; `api/settings/goal` – `GET`, `PUT`.
 - `api/ad-title?url=` → `{title, role, org, reason}` for a job ad shared as a bare link (the LinkedIn app shares
   only the URL). For LinkedIn it first reads the guest posting page `/jobs-guest/jobs/api/jobPosting/<id>`
-  (role and employer separately), then the ad page's title; one retry on 429. Only https links to known job
+  (role and employer separately), then the ad page's title; LinkedIn answers 429 at random, so up to 3 spaced retries. Only https links to known job
   sites (`_lib/adTitle.ts`, also re-checked on redirects), so it is no open proxy. On failure `reason` (Finnish)
   is shown in the add dialog (`EditTarget.notice`). Duunitori blocks server requests, but browsers share its
   title anyway. The client splits titles into role and employer with `splitAdTitle()` (`src/lib/share.ts`).
