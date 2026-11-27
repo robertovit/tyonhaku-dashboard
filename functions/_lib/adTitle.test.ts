@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import { allowedAdUrl, extractTitle, fetchAd, linkedinJobId, parseLinkedinPosting } from "./adTitle";
+import { publicHttpsUrl, extractTitle, fetchAd, linkedinJobId, parseLinkedinPosting } from "./adTitle";
 
 const page = (body: string) => new Response(body, { headers: { "content-type": "text/html" } });
 const redirect = (to: string) => new Response(null, { status: 302, headers: { location: to } });
@@ -15,21 +15,28 @@ const GUEST = `<section><h2 class="top-card-layout__title font-sans">Data-analyy
   </a></section>`;
 
 describe("ad lookup", () => {
-  it("accepts only https links to known job sites", () => {
-    expect(allowedAdUrl("https://www.linkedin.com/jobs/view/123")?.hostname).toBe("www.linkedin.com");
-    expect(allowedAdUrl("https://duunitori.fi/tyopaikat/tyo/x-1")).not.toBeNull();
+  it("accepts public https pages and nothing internal", () => {
+    expect(publicHttpsUrl("https://www.linkedin.com/jobs/view/123")?.hostname).toBe("www.linkedin.com");
+    expect(publicHttpsUrl("https://ura.esimerkki.fi/paikat/1")).not.toBeNull();
     for (const bad of [
       "http://www.linkedin.com/jobs/view/123",
-      "https://linkedin.com.evil.example/x",
-      "https://evil-linkedin.com/x",
+      "https://10.0.0.1/x",
+      "https://0x7f.1/x",
+      "https://2130706433/x",
+      "https://[::1]/x",
       "https://localhost/x",
+      "https://palvelin.localhost/x",
+      "https://nas.local/x",
+      "https://db.internal/x",
+      "https://intranet/x",
+      "https://tyonhaku.esim.fi/api/applications",
       "https://www.linkedin.com:8443/x",
       "https://user@www.linkedin.com/x",
       "javascript:alert(1)",
       "",
       null,
     ])
-      expect(allowedAdUrl(bad)).toBeNull();
+      expect(publicHttpsUrl(bad, "tyonhaku.esim.fi"), String(bad)).toBeNull();
   });
 
   it("reads og:title or <title> and decodes entities", () => {
@@ -53,7 +60,7 @@ describe("ad lookup", () => {
   });
 
   it("asks LinkedIn's guest posting first, then the page", async () => {
-    const start = allowedAdUrl("https://www.linkedin.com/jobs/view/4493123456/")!;
+    const start = publicHttpsUrl("https://www.linkedin.com/jobs/view/4493123456/")!;
     const ok = via(page(GUEST));
     expect(await fetchAd(start, ok.f)).toEqual({
       title: "",
@@ -78,7 +85,7 @@ describe("ad lookup", () => {
   it("retries a 429 once, then gives up without asking the page", async () => {
     vi.useFakeTimers();
     try {
-      const start = allowedAdUrl("https://www.linkedin.com/jobs/view/4493123456/")!;
+      const start = publicHttpsUrl("https://www.linkedin.com/jobs/view/4493123456/")!;
       const limited = () => new Response("", { status: 429 });
       const lucky = via(limited(), page(GUEST));
       const got = fetchAd(start, lucky.f);
@@ -96,16 +103,20 @@ describe("ad lookup", () => {
     }
   });
 
-  it("follows redirects only to known sites, and not to a login wall", async () => {
-    const start = allowedAdUrl("https://duunitori.fi/tyopaikat/tyo/x-1")!;
+  it("follows redirects only to public hosts, and not to a login wall", async () => {
+    const start = publicHttpsUrl("https://duunitori.fi/tyopaikat/tyo/x-1")!;
     const title = async (...rs: Response[]) => {
       const r = await fetchAd(start, via(...rs).f);
       return [r.title, r.reason];
     };
     expect(await title(redirect("https://www.duunitori.fi/x"), page("<title>T</title>"))).toEqual(["T", ""]);
-    expect(await title(redirect("https://evil.example/"), page("<title>X</title>"))).toEqual([
+    expect(await title(redirect("https://169.254.169.254/latest"), page("<title>X</title>"))).toEqual([
       "",
-      "ohjaus osoitteeseen evil.example",
+      "ohjaus osoitteeseen 169.254.169.254",
+    ]);
+    expect(await title(redirect("http://ura.esimerkki.fi/x"), page("<title>X</title>"))).toEqual([
+      "",
+      "ohjaus osoitteeseen ura.esimerkki.fi",
     ]);
     expect(await title(redirect("https://www.linkedin.com/authwall?trk=x"))).toEqual([
       "",

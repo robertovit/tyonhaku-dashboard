@@ -39,6 +39,36 @@ const SITE_SUFFIX =
   /\s*[|\-–—]\s*(?:Työpaikat\s*-\s*)?(?:Duunitori|Oikotie[^|]*|Jobly|Indeed[^|]*|Työmarkkinatori)\s*$/i;
 const LINKEDIN_SUFFIX = /\s*\|\s*LinkedIn[^|]*$/i;
 
+// Recruiting platforms that put the employer in the address: in the first part of the host name, or in the
+// first path segment.
+const ORG_IN_HOST = /^([^.]+)\.(?:wd\d+\.myworkdayjobs\.com|teamtailor\.com|recruitee\.com|breezy\.hr)$/i;
+const ORG_IN_PATH =
+  /^(?:jobs\.lever\.co|(?:job-)?boards\.greenhouse\.io|jobs\.smartrecruiters\.com|apply\.workable\.com|jobs\.ashbyhq\.com)$/i;
+
+/** The employer named in a recruiting platform's address ("esimerkki-oy.teamtailor.com" → "Esimerkki Oy"),
+ *  or "" for any other address. */
+export function orgFromUrl(url: string): string {
+  let u: URL;
+  try {
+    u = new URL(url);
+  } catch {
+    return "";
+  }
+  const name = u.hostname.match(ORG_IN_HOST)?.[1] ?? (ORG_IN_PATH.test(u.hostname) ? u.pathname.split("/")[1] : "");
+  let words: string;
+  try {
+    words = decodeURIComponent(name ?? "");
+  } catch {
+    return "";
+  }
+  return words
+    .split(/[-_\s]+/)
+    .filter(Boolean)
+    .map((w) => w[0].toUpperCase() + w.slice(1))
+    .join(" ")
+    .slice(0, 200);
+}
+
 /** Letters and digits only, lowercase, without accents: "Bending Spoons Oy" → "bendingspoons". */
 const squash = (s: string) =>
   s
@@ -75,8 +105,14 @@ function partInUrl(parts: string[], url: string): number {
  * "Rooli klo Yritys — Paikka | LinkedIn-Työpaikat", "Yritys hiring Rooli in Paikka | LinkedIn",
  * "Job Application for Rooli at Yritys", and on employers' own sites "Rooli | Yritys" or "Yritys - Rooli":
  * with the ad's `url`, the part found in the address is the employer. Anything else is returned whole as the role.
+ * When the title names no employer, a recruiting platform's address may (`orgFromUrl`).
  */
 export function splitAdTitle(raw: string, url = ""): { role: string; org: string } {
+  const r = splitTitle(raw, url);
+  return r.org ? r : { role: r.role, org: orgFromUrl(url) };
+}
+
+function splitTitle(raw: string, url: string): { role: string; org: string } {
   let t = raw.replace(/\s+/g, " ").trim();
   const linkedin = LINKEDIN_SUFFIX.test(t);
   t = t.replace(LINKEDIN_SUFFIX, "");

@@ -1,11 +1,13 @@
 // Reads the page title of a job ad, for ads shared as a bare link (the LinkedIn app shares only the URL).
-// Only known job sites over https: the function must not work as an open proxy.
-const SITES = ["linkedin.com", "duunitori.fi", "oikotie.fi", "jobly.fi", "tyomarkkinatori.fi", "indeed.com"];
+// Any public https page: /api is behind Cloudflare Access and the owner's email, so this is no open proxy for
+// others. What it must not reach is anything internal, so IP addresses, local names and the app itself are
+// refused, here and on every redirect.
 const MAX_BYTES = 300_000;
 const UA = "Mozilla/5.0 (compatible; Tyonhaku/1.0; +https://github.com/robertovit/tyonhaku-dashboard)";
+const LOCAL_NAME = /(^|\.)(localhost|local|internal|lan|home\.arpa)$/i;
 
-/** The URL when it is an https link to a known job site, otherwise null. */
-export function allowedAdUrl(raw: string | null): URL | null {
+/** The URL when it is an https link to a public host name (not `ownHost`), otherwise null. */
+export function publicHttpsUrl(raw: string | null, ownHost = ""): URL | null {
   let u: URL;
   try {
     u = new URL(raw ?? "");
@@ -13,8 +15,11 @@ export function allowedAdUrl(raw: string | null): URL | null {
     return null;
   }
   if (u.protocol !== "https:" || u.port || u.username || u.password) return null;
-  const h = u.hostname.toLowerCase();
-  return SITES.some((s) => h === s || h.endsWith(`.${s}`)) ? u : null;
+  const h = u.hostname.toLowerCase().replace(/\.$/, "");
+  // The URL parser already turns numeric forms (0x7f.1, 2130706433) into dotted IPv4; IPv6 comes in brackets.
+  if (!h.includes(".") || /^[\d.]+$/.test(h) || h.includes(":") || h.startsWith("[")) return null;
+  if (LOCAL_NAME.test(h) || (ownHost && h === ownHost.toLowerCase())) return null;
+  return u;
 }
 
 const ENTITIES: Record<string, string> = { amp: "&", lt: "<", gt: ">", quot: '"', apos: "'", nbsp: " " };
@@ -69,12 +74,13 @@ const wait = (ms: number) => new Promise((ok) => setTimeout(ok, ms));
  *  nearly every time, and more retries only kept the add dialog waiting. */
 const RETRY_WAITS = [700];
 
-/** The start of an HTML page, or why it could not be read. Follows up to 3 redirects, each to a known site,
+/** The start of an HTML page, or why it could not be read. Follows up to 3 redirects, each to a public host,
  *  and retries once after "429 too many requests". */
 async function getPage(
   start: URL,
   fetcher: typeof fetch,
   signal: AbortSignal,
+  ownHost: string,
 ): Promise<{ html: string } | { reason: string; limited?: boolean }> {
   let url = start;
   for (let hop = 0, tries = 0; hop < 4;) {
@@ -86,7 +92,7 @@ async function getPage(
     });
     if (r.status >= 300 && r.status < 400) {
       const to = new URL(r.headers.get("location") ?? "", url);
-      const next = allowedAdUrl(to.toString());
+      const next = publicHttpsUrl(to.toString(), ownHost);
       if (!next) return { reason: `ohjaus osoitteeseen ${to.hostname}` };
       url = next;
       hop++;
@@ -125,13 +131,13 @@ export function parseLinkedinPosting(html: string): { role: string; org: string 
 
 /** Everything the server can find about a shared ad link: for LinkedIn first its guest posting page (role and
  *  employer separately), then for any known site the page title. */
-export async function fetchAd(start: URL, fetcher: typeof fetch = fetch): Promise<AdInfo> {
+export async function fetchAd(start: URL, fetcher: typeof fetch = fetch, ownHost = ""): Promise<AdInfo> {
   const signal = AbortSignal.timeout(8000);
   let reason = "";
   const id = linkedinJobId(start);
   if (id) {
     const guest = new URL(`https://www.linkedin.com/jobs-guest/jobs/api/jobPosting/${id}`);
-    const page = await getPage(guest, fetcher, signal);
+    const page = await getPage(guest, fetcher, signal, ownHost);
     if ("html" in page) {
       const { role, org } = parseLinkedinPosting(page.html);
       if (role) return { title: "", role, org, reason: "" };
@@ -140,7 +146,7 @@ export async function fetchAd(start: URL, fetcher: typeof fetch = fetch): Promis
       return { title: "", role: "", org: "", reason: page.reason }; // the page is limited too
     else reason = page.reason;
   }
-  const page = await getPage(start, fetcher, signal);
+  const page = await getPage(start, fetcher, signal, ownHost);
   if ("reason" in page) return { title: "", role: "", org: "", reason: reason || page.reason };
   const title = extractTitle(page.html);
   return { title, role: "", org: "", reason: title ? "" : reason || "sivulla ei ollut otsikkoa" };

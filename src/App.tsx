@@ -125,12 +125,14 @@ export default function App() {
         const r = await adTitle(shared.url);
         if (r.role) found = { role: r.role, org: r.org, notice: "" };
         else if (r.title) found = { ...splitAdTitle(r.title, shared.url), notice: "" };
-        else
+        else {
+          // found already holds the employer from a recruiting platform's address, if any (splitAdTitle)
           found.notice =
             `Ilmoituksen tietoja ei saatu${r.reason ? ` (${r.reason})` : ""}. Linkki on tallessa, täytä muut kentät itse.` +
             (/linkedin\.com/i.test(shared.url)
               ? " Vinkki: avaa ilmoituksesta Hae työpaikkaa ja jaa se sivu, niin työnantaja ja tehtävä täyttyvät."
               : "");
+        }
       }
       const { role, org, notice } = found;
       setEdit({ app: null, prefill: { status: "todo", d: today, url: shared.url, role, org }, notice });

@@ -48,12 +48,16 @@ Stack: React 19 + TypeScript + Vite, charts with visx (D3 scales/shapes), Vitest
   `api/applications/:id` – `PUT` set, `PATCH` merge, `DELETE`; `api/settings/goal` – `GET`, `PUT`.
 - `api/ad-title?url=` → `{title, role, org, reason}` for a job ad shared as a bare link (the LinkedIn app shares
   only the URL). For LinkedIn it first reads the guest posting page `/jobs-guest/jobs/api/jobPosting/<id>`
-  (role and employer separately), then the ad page's title; one retry on 429 (from Cloudflare LinkedIn mostly answers 429, so the dialog
-  suggests sharing the employer's own ad page via "Hae työpaikkaa" instead). Only https links to known job
-  sites (`_lib/adTitle.ts`, also re-checked on redirects), so it is no open proxy. On failure `reason` (Finnish)
-  is shown in the add dialog (`EditTarget.notice`). Duunitori blocks server requests, but browsers share its
-  title anyway. The client splits titles into role and employer with `splitAdTitle()` (`src/lib/share.ts`); on employers' own
-  sites the title part found in the ad's address is the employer. `parseShare` drops tracking parameters (utm_*).
+  (role and employer separately), then the ad page's title; one retry on 429 (from Cloudflare LinkedIn mostly
+  answers 429, so the dialog suggests sharing the employer's own ad page via "Hae työpaikkaa" instead).
+  Any public https page is allowed (`publicHttpsUrl` in `_lib/adTitle.ts`): the endpoint is owner-only behind
+  Access, and IP addresses, local names and the app's own host are refused, also on redirects (no SSRF).
+  On failure `reason` (Finnish) is shown in the add dialog (`EditTarget.notice`). Duunitori blocks server
+  requests, but browsers share its title anyway.
+- The client splits titles into role and employer with `splitAdTitle()` (`src/lib/share.ts`): on employers' own
+  sites the title part found in the ad's address is the employer, and on recruiting platforms (Workday,
+  Teamtailor, Lever, Greenhouse, …) `orgFromUrl()` reads the employer from the address when the title has none.
+  `parseShare` drops tracking parameters (utm_*).
 - Every stored document goes through the app's own `normalize()` + `toDoc()`, so the server and client agree.
 - D1 tables: `applications(id, doc JSON, updated_at)`, `settings(key, value JSON)`.
 - Settings live in the Pages dashboard, never in the repo: binding `DB`, variables `ACCESS_TEAM_DOMAIN`,

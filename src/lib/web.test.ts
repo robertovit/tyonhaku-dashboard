@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { parseShare, splitAdTitle } from "./share";
+import { orgFromUrl, parseShare, splitAdTitle } from "./share";
 import { parseBackup, toBackup } from "./backup";
 import { normalize, type Application } from "./model";
 import { adTitle, webStore } from "./web";
@@ -60,6 +60,27 @@ describe("share target", () => {
       ["Job Application for Product Designer at Esimerkki", "", "Product Designer", "Esimerkki"],
     ];
     for (const [title, url, role, org] of cases) expect(splitAdTitle(title, url), title).toEqual({ role, org });
+  });
+
+  it("finds the employer in a recruiting platform's address", () => {
+    const cases: [string, string][] = [
+      ["https://esimerkki.wd3.myworkdayjobs.com/fi-FI/Ura/job/Tampere/Junior-Designer_R123", "Esimerkki"],
+      ["https://esimerkki-oy.teamtailor.com/jobs/123-ux-designer", "Esimerkki Oy"],
+      ["https://peliyhtio.recruitee.com/o/designer", "Peliyhtio"],
+      ["https://mittakaava.breezy.hr/p/abc", "Mittakaava"],
+      ["https://jobs.lever.co/peliyhtio/4b1c-77", "Peliyhtio"],
+      ["https://boards.greenhouse.io/esimerkki/jobs/1", "Esimerkki"],
+      ["https://job-boards.greenhouse.io/esimerkki/jobs/1", "Esimerkki"],
+      ["https://jobs.smartrecruiters.com/EsimerkkiGroup/7-designer", "EsimerkkiGroup"],
+      ["https://apply.workable.com/mittakaava/j/ABC/", "Mittakaava"],
+      ["https://jobs.ashbyhq.com/esimerkki/123", "Esimerkki"],
+      ["https://ura.esimerkki.fi/paikat/1", ""],
+      ["https://www.myworkdayjobs.com/x", ""],
+      ["ei osoite", ""],
+    ];
+    for (const [url, org] of cases) expect(orgFromUrl(url), url).toBe(org);
+    expect(splitAdTitle("Junior Designer", cases[0][0])).toEqual({ role: "Junior Designer", org: "Esimerkki" });
+    expect(splitAdTitle("Junior Designer", "https://ura.esimerkki.fi/1")).toEqual({ role: "Junior Designer", org: "" });
   });
 
   it("asks the server for a bare link's title and never throws", async () => {
