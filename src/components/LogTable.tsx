@@ -1,8 +1,10 @@
 import { useState } from "react";
 import { dayDiff, fmtDate, waitingSince } from "../lib/dates";
 import { xpForApp } from "../lib/game";
+import { hadInterview } from "../lib/history";
 import { STATUS, type Application, type Status } from "../lib/model";
 import { countBy, FOLLOWUP_DAYS } from "../lib/stats";
+import { Timeline } from "./History";
 
 type Filter = "all" | Status;
 const FIRST_ROWS = 12;
@@ -87,7 +89,7 @@ export function LogTable({
           <tbody>
             {shown.map((a) => {
               const days = a.status === "wait" && a.type !== "open" ? dayDiff(waitingSince(a), today) : 0;
-              const hi = a.status === "int" || a.status === "offer";
+              const hi = hadInterview(a);
               return (
                 <tr key={a.id} className={a.id === highlight ? "just-saved" : undefined}>
                   <td className="pixcell">{fmtDate(a.d)}</td>
@@ -100,6 +102,12 @@ export function LogTable({
                       </a>
                     )}
                     {a.note && <span className={`detail${hi ? " hi" : ""}`}>{hi ? `★ ${a.note}` : a.note}</span>}
+                    {a.events.length > 0 && (
+                      <details className="hist">
+                        <summary>Historia</summary>
+                        <Timeline app={a} />
+                      </details>
+                    )}
                   </td>
                   <td className="pixcell dim">{a.end || "–"}</td>
                   <td>

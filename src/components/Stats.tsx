@@ -1,3 +1,4 @@
+import { hadInterview, hadOffer } from "../lib/history";
 import { STATUS, TYPES, type Application, type Status } from "../lib/model";
 import { competition, funnel, orgRanking, summary, typeCounts } from "../lib/stats";
 import { HBarChart } from "./charts/HBarChart";
@@ -100,7 +101,7 @@ export function StatsView({ apps, present }: { apps: Application[]; present: Sta
           <HBarChart
             ariaLabel="Hakijamäärät paikoittain"
             rows={comp.map((a) => {
-              const hi = a.status === "int" || a.status === "offer";
+              const hi = hadInterview(a);
               return {
                 key: a.id,
                 label: (
@@ -113,7 +114,7 @@ export function StatsView({ apps, present }: { apps: Application[]; present: Sta
                 valueLabel: `${a.n}${a.nPlus ? "+" : ""}`,
                 color: hi ? "var(--accent)" : "var(--bar-muted)",
                 note: hi
-                  ? `★ ${STATUS[a.status].label}${a.top ? " · sijoitus nro 1" : ""}`
+                  ? `★ ${STATUS[hadOffer(a) ? "offer" : "int"].label}${a.top ? " · sijoitus nro 1" : ""}`
                   : a.top
                     ? "★ Sijoitus nro 1"
                     : undefined,

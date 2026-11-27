@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { fmtDate } from "../lib/dates";
-import { avatarItem, BADGES, XP_RULES, type GameState } from "../lib/game";
+import { avatarItem, BADGES, statusGain, XP_RULES, type GameState } from "../lib/game";
 import type { Application } from "../lib/model";
 import type { Followup, WeekBucket } from "../lib/stats";
 import { Avatar } from "./Avatar";
@@ -179,6 +179,10 @@ export function QuestPanel({
       setBusy(false);
     }
   };
+  // A rejection already in the history earns nothing again.
+  const rejectLabel = (a: Application) => (
+    <>Kuittaa ei valituksi {statusGain(a, "no") > 0 && <span className="xp">+{statusGain(a, "no")} XP</span>}</>
+  );
   const when = (f: Followup) => `${f.since === f.app.d ? "haettu" : "haku päättyi"} ${fmtDate(f.since)}`;
   const actions = (f: Followup, inline: boolean) =>
     inline ? (
@@ -187,7 +191,7 @@ export function QuestPanel({
         {canWrite && (
           <>
             <button type="button" className="btn sel" disabled={busy} onClick={() => run(() => onReject(f.app))}>
-              Kuittaa ei valituksi <span className="xp">+{XP_RULES.rejectionHandled} XP</span>
+              {rejectLabel(f.app)}
             </button>
             <div className="pair">
               <button type="button" className="btn" disabled={busy} onClick={() => run(() => onSnooze(f.app))}>
@@ -216,7 +220,7 @@ export function QuestPanel({
         {canWrite ? (
           <>
             <button type="button" className="menu-btn" disabled={busy} onClick={() => run(() => onReject(f.app))}>
-              Kuittaa ei valituksi <span className="xp">+{XP_RULES.rejectionHandled} XP</span>
+              {rejectLabel(f.app)}
             </button>
             <button type="button" className="menu-btn" disabled={busy} onClick={() => run(() => onSnooze(f.app))}>
               Muistuta 2 vk päästä

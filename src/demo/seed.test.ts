@@ -2,6 +2,8 @@ import { describe, expect, it } from "vitest";
 import { demoSeed } from "./seed";
 import { FIXTURE, FIXTURE_TODAY } from "../dev/fixtures";
 import { addDays, dayDiff, fmtDate, weekday } from "../lib/dates";
+import { xpForApp } from "../lib/game";
+import { normalize } from "../lib/model";
 
 describe("demoSeed", () => {
   it("keeps the fixture as is on its own day", () => {
@@ -43,5 +45,15 @@ describe("demoSeed", () => {
   it("adds two applications sent this week", () => {
     const sent = demoSeed("2027-03-17").filter(([id]) => id.startsWith("demo-sent"));
     expect(sent.map(([, d]) => d.d)).toEqual(["2027-03-15", "2027-03-17"]); // Monday and today (a Wednesday)
+  });
+
+  it("adds an application whose history shows an interview before the rejection", () => {
+    const [, doc] = demoSeed("2027-03-17").find(([id]) => id === "demo-hist-1")!;
+    const app = normalize("demo-hist-1", doc, "2027-03-17");
+    expect(app.events).toEqual([
+      { status: "int", d: "2027-03-03" },
+      { status: "no", d: "2027-03-14" },
+    ]);
+    expect(xpForApp(app)).toBe(66); // 10 + cover letter 3 + rejection 3 + interview 50
   });
 });

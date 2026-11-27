@@ -1,4 +1,5 @@
 import { addDays, dayDiff, isoWeek, waitingSince, weekKey } from "./dates";
+import { gotAnswer, hadInterview, hadOffer } from "./history";
 import { STATUS_ORDER, TYPES, type Application, type JobType, type Status } from "./model";
 
 export const FOLLOWUP_DAYS = 21;
@@ -28,8 +29,8 @@ export function summary(apps: Application[]) {
   return {
     total: apps.length,
     counts: c,
-    answered: apps.length - c.wait,
-    interviews: apps.filter((a) => a.status === "int" || a.status === "offer"),
+    answered: apps.filter(gotAnswer).length,
+    interviews: apps.filter(hadInterview),
     knownN: known.length,
     medianN: median(known),
     orgCount: new Set(apps.map((a) => a.org.trim().toLowerCase())).size,
@@ -122,13 +123,13 @@ export function typeCounts(apps: Application[]): [JobType, number][] {
 export const competition = (apps: Application[]) =>
   apps.filter((a) => a.n != null).sort((a, b) => (b.n as number) - (a.n as number));
 
-/** Haettu → vastaus saatu → haastattelu → tarjous. */
+/** Haettu → vastaus saatu → haastattelu → tarjous, by the stages reached (a rejection after an interview still
+ *  counts as an interview). The outcome counts (countBy) use the current status. */
 export function funnel(apps: Application[]) {
-  const c = countBy(apps);
   return [
     { key: "haettu", label: "Haettu", value: apps.length },
-    { key: "vastaus", label: "Vastaus saatu", value: apps.length - c.wait },
-    { key: "haastattelu", label: "Haastattelu", value: c.int + c.offer },
-    { key: "tarjous", label: "Tarjous", value: c.offer },
+    { key: "vastaus", label: "Vastaus saatu", value: apps.filter(gotAnswer).length },
+    { key: "haastattelu", label: "Haastattelu", value: apps.filter(hadInterview).length },
+    { key: "tarjous", label: "Tarjous", value: apps.filter(hadOffer).length },
   ];
 }

@@ -13,11 +13,11 @@ Kuvakaappauksen ja demon hakemukset ovat keksittyä esimerkkidataa. Omat hakemuk
 - **Tänään-näkymä:** hahmo, jonka varusteet kasvavat tason mukana, sekä XP-, viikkotavoite- ja putkimittarit. Tehtävät-listassa ovat hakemukset, joista ei ole kuulunut yli kolmeen viikkoon. Niille on pikatoiminnot: kuittaa ei valituksi, muistuta myöhemmin tai muokkaa.
 - **Esineet:** 14 saavutusta. Valitusta näkee, miten sen saa ja miltä viikolta se on ansaittu.
 - **Tilastot:** lopputulokset, suppilo hausta tarjoukseen, tehtävätyypit, työnantajat ja hakijamäärät.
-- **Hakuloki:** kaikki hakemukset tilan mukaan suodatettavina, ja jokaisen hakemuksen XP.
+- **Hakuloki:** kaikki hakemukset tilan mukaan suodatettavina, ja jokaisen hakemuksen XP. Rivin **Historia** näyttää, milloin hakemus lähti ja milloin se eteni (esim. haastattelu, sitten ei valittu). Väärän merkinnän voi korjata muokkausikkunan kohdasta **Korjaa historiaa**.
 - **Haettavat:** kiinnostavan ilmoituksen voi ottaa talteen ennen kuin hakee. Lista järjestyy määräajan mukaan, ja **Merkitse haetuksi** tuo XP:t.
 - **Lisää hakemus:** PALKKIO-paneeli näyttää, paljonko XP:tä tallennus tuo ja miten viikkotavoite etenee.
 - **Puhelimessa:** sovelluksen voi asentaa aloitusnäytölle (PWA). Androidissa se näkyy Jaa-valikossa, joten ilmoituksen saa talteen suoraan LinkedInistä tai selaimesta. Työnantaja, tehtävä ja tehtävätyyppi täyttyvät jaetusta ilmoituksesta valmiiksi.
-- **Pelisäännöt** palkitsevat tekemistä, eivät lopputulosta, joten myös käsitelty hylkäys tuottaa XP:tä.
+- **Pelisäännöt** palkitsevat tekemistä, eivät lopputulosta, joten myös käsitelty hylkäys tuottaa XP:tä. Saavutettu vaihe pysyy: haastattelun jälkeinen hylkäys ei vie haastattelun pisteitä.
 - Tumma ja vaalea teema, mobiilissa alapalkkivalikko, ja **CSV-lataus** varmuuskopioksi.
 
 ## Tekniikka

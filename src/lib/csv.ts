@@ -7,6 +7,7 @@ const COLUMNS: [string, (a: Application) => string | number | null][] = [
   ["Tehtävä", (a) => a.role],
   ["Tehtävätyyppi", (a) => TYPES[a.type]],
   ["Tila", (a) => STATUS[a.status].label],
+  ["Vaiheet", (a) => a.events.map((e) => `${STATUS[e.status].label} ${e.d || "(pvm ei tiedossa)"}`).join("; ")],
   ["Lisätieto", (a) => a.note],
   ["Hakijoita", (a) => (a.n == null ? "" : `${a.n}${a.nPlus ? "+" : ""}`)],
   ["Hakutapa", (a) => a.how],

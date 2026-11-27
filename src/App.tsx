@@ -18,6 +18,7 @@ import { useCelebration } from "./hooks/useCelebration";
 import { useToast } from "./hooks/useToast";
 import { addDays, dayDiff, deadlineIso, fmtDate, isoWeek, todayIso, weekday } from "./lib/dates";
 import { avgXpPerApp, badgeWeeks, gameState } from "./lib/game";
+import { recordStatus } from "./lib/history";
 import { followups, presentStatuses, SNOOZE_DAYS, summary, weeklySeries } from "./lib/stats";
 import type { Application, ApplicationDoc } from "./lib/model";
 import { toCsv } from "./lib/csv";
@@ -275,7 +276,7 @@ export default function App() {
                   due={fu.due}
                   snoozed={fu.snoozed}
                   canWrite={canWrite}
-                  onReject={(a) => patch(a, { status: "no" })}
+                  onReject={(a) => patch(a, { status: "no", events: recordStatus(a.events, "no", today) })}
                   onSnooze={(a) => patch(a, { snoozeUntil: addDays(today, SNOOZE_DAYS) })}
                   onEdit={(a) => setEdit({ app: a })}
                 />
