@@ -41,6 +41,10 @@ Components never touch `fetch` directly.
   (`_lib/db.ts`, `CREATE TABLE IF NOT EXISTS`, so no migration step).
 - `api/applications` – `GET` list, `POST` import a backup `{goal?, items: [{id, doc}]}` (upsert, one batch);
   `api/applications/:id` – `PUT` set, `PATCH` merge, `DELETE`; `api/settings/goal` – `GET`, `PUT`.
+- `api/ad-title?url=` – page title of a job ad shared as a bare link (the LinkedIn app shares only the URL).
+  Only https links to known job sites (`_lib/adTitle.ts`, also re-checked on redirects), so it is no open proxy;
+  answers `{title: ""}` on any failure. Duunitori blocks server requests, but browsers share its title anyway.
+  The client splits titles into role and employer with `splitAdTitle()` (`src/lib/share.ts`).
 - Every stored document goes through the app's own `normalize()` + `toDoc()`, so the server and client agree.
 - D1 tables: `applications(id, doc JSON, updated_at)`, `settings(key, value JSON)`.
 - Settings live in the Pages dashboard, never in the repo: binding `DB`, variables `ACCESS_TEAM_DOMAIN`,

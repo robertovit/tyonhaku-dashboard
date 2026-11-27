@@ -22,7 +22,7 @@ import { followups, presentStatuses, SNOOZE_DAYS, summary, weeklySeries } from "
 import type { Application, ApplicationDoc } from "./lib/model";
 import { toCsv } from "./lib/csv";
 import { parseBackup, toBackup } from "./lib/backup";
-import { parseShare } from "./lib/share";
+import { parseShare, splitAdTitle } from "./lib/share";
 import { UserFacingError } from "./lib/store";
 import { AUTH_MSG, LOGIN_URL } from "./lib/web";
 
@@ -109,15 +109,25 @@ export default function App() {
     }
   };
 
-  // An ad shared to the installed app (Android share menu) opens the add dialog as a saved ad.
+  // An ad shared to the installed app (Android share menu) opens the add dialog as a saved ad. The role and
+  // employer come from the shared title; a bare link (the LinkedIn app) gets its page title from the server.
   const [shared, setShared] = useState(() => parseShare(location.search));
+  const adTitle = backend?.adTitle;
   useEffect(() => {
     if (!shared || !canWrite) return;
-    setView("tanaan");
-    setEdit({ app: null, prefill: { status: "todo", d: today, url: shared.url, role: shared.title } });
     setShared(null);
     history.replaceState(null, "", location.pathname + location.hash);
-  }, [shared, canWrite, today, setView]);
+    setView("tanaan");
+    void (async () => {
+      let title = shared.title;
+      if (!title && shared.url && adTitle) {
+        show("Haetaan ilmoituksen tietoja…");
+        title = await adTitle(shared.url);
+      }
+      const { role, org } = splitAdTitle(title);
+      setEdit({ app: null, prefill: { status: "todo", d: today, url: shared.url, role, org } });
+    })();
+  }, [shared, canWrite, today, setView, adTitle, show]);
 
   // status line
   let state = "loading";

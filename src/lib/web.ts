@@ -147,8 +147,27 @@ export const blobDownloads: Downloads = {
   },
 };
 
+/** Asks the server for a shared link's page title (functions/api/ad-title.ts); "" on any failure. */
+export async function adTitle(url: string, f: Fetch = (...a) => fetch(...a)): Promise<string> {
+  try {
+    const r = await call<{ title?: unknown }>(f, `/ad-title?url=${encodeURIComponent(url)}`, {
+      signal: AbortSignal.timeout(7000),
+    });
+    return typeof r.title === "string" ? r.title : "";
+  } catch {
+    return "";
+  }
+}
+
 export async function connect(): Promise<Backend> {
   const store = webStore();
   // Claude fill needs an API key on the server; until then the add dialog is filled by hand.
-  return { store, assistant: null, downloads: blobDownloads, restore: (b) => store.restore(b), logoutUrl: LOGOUT_URL };
+  return {
+    store,
+    assistant: null,
+    downloads: blobDownloads,
+    restore: (b) => store.restore(b),
+    logoutUrl: LOGOUT_URL,
+    adTitle: (url) => adTitle(url),
+  };
 }

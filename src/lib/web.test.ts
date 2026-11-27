@@ -1,8 +1,8 @@
 import { describe, expect, it } from "vitest";
-import { parseShare } from "./share";
+import { parseShare, splitAdTitle } from "./share";
 import { parseBackup, toBackup } from "./backup";
 import { normalize, type Application } from "./model";
-import { webStore } from "./web";
+import { adTitle, webStore } from "./web";
 import { UserFacingError } from "./store";
 
 describe("share target", () => {
@@ -17,6 +17,35 @@ describe("share target", () => {
     });
     expect(parseShare("")).toBeNull();
     expect(parseShare("?view=loki")).toBeNull();
+  });
+
+  it("splits a job ad title into role and employer", () => {
+    const cases: [string, string, string][] = [
+      ["Full Stack Developer - Esimerkki Oy - Työpaikat - Duunitori", "Full Stack Developer", "Esimerkki Oy"],
+      ["Data Analyst (Gaming) at Peliyhtiö Oy — Finland | LinkedIn Jobs", "Data Analyst (Gaming)", "Peliyhtiö Oy"],
+      ["Data Analyst klo Peliyhtiö Oy — Tampere, Pirkanmaa | LinkedIn-Työpaikat", "Data Analyst", "Peliyhtiö Oy"],
+      ["Peliyhtiö Oy hiring UX Designer in Tampere, Finland | LinkedIn", "UX Designer", "Peliyhtiö Oy"],
+      ["Head of Data at Scale at Mittakaava Oy | LinkedIn", "Head of Data at Scale", "Mittakaava Oy"],
+      ["Suunnittelija - Kaupunki", "Suunnittelija", "Kaupunki"],
+      ["Katso tämä työpaikka", "Katso tämä työpaikka", ""],
+      ["Kehittäjä - Yritys - Tampere", "Kehittäjä - Yritys - Tampere", ""],
+      ["", "", ""],
+    ];
+    for (const [title, role, org] of cases) expect(splitAdTitle(title), title).toEqual({ role, org });
+  });
+
+  it("asks the server for a bare link's title and never throws", async () => {
+    const seen: string[] = [];
+    const ok = (async (u: string) => (
+      seen.push(u),
+      new Response(JSON.stringify({ title: "Rooli at Yritys | LinkedIn" }), { status: 200 })
+    )) as unknown as typeof fetch;
+    expect(await adTitle("https://www.linkedin.com/jobs/view/1", ok)).toBe("Rooli at Yritys | LinkedIn");
+    expect(seen[0]).toBe("/api/ad-title?url=https%3A%2F%2Fwww.linkedin.com%2Fjobs%2Fview%2F1");
+    const down = (async () => {
+      throw new TypeError("offline");
+    }) as unknown as typeof fetch;
+    expect(await adTitle("https://www.linkedin.com/jobs/view/1", down)).toBe("");
   });
 });
 

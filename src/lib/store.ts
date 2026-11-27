@@ -61,6 +61,8 @@ export interface Backend {
   reason?: string;
   /** Where "Kirjaudu ulos" leads; absent when the backend has no sign-in of its own. */
   logoutUrl?: string;
+  /** The page title of a job ad shared as a bare link, or "" (never throws). Absent without a server. */
+  adTitle?: (url: string) => Promise<string>;
   /** Set in the public demo: the UI shows the demo banner, and `reset` brings back the example data. */
   demo?: { reset(): Promise<void> };
 }

@@ -125,7 +125,11 @@ export function EditDialog({
     const d = ref.current;
     if (!d) return;
     if (target && !d.open) {
-      setDraft({ ...fromApp(target.app, today), ...target.prefill });
+      const draft = { ...fromApp(target.app, today), ...target.prefill };
+      // A new entry with a prefilled employer or role (a shared ad) gets its type from them, as when typing.
+      if (!target.app && (target.prefill?.org || target.prefill?.role))
+        draft.type = classifyType(draft.org, draft.role);
+      setDraft(draft);
       setFilled(new Set());
       setError("");
       setArmedDelete(false);
