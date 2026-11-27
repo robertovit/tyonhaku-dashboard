@@ -10,15 +10,15 @@ Kuvakaappauksen ja demon hakemukset ovat keksittyä esimerkkidataa. Omat hakemuk
 
 ## Mitä se tekee
 
-- **Tänään-näkymä:** hahmo, jonka varusteet kasvavat tason mukana, sekä XP-, viikkotavoite- ja putkimittarit. Tehtävät-listassa ovat hakemukset, joista ei ole kuulunut yli kolmeen viikkoon. Niille on pikatoiminnot: kuittaa ei valituksi, muistuta myöhemmin tai muokkaa.
-- **Esineet:** kolme kilpeä, jotka avautuvat kirjatuista hylkäyksistä (1, 5 ja 10) ja jotka voi pukea hahmolle, sekä hakemisesta ansaittavat saavutukset. Valitusta näkee, miten sen saa ja miltä viikolta se on ansaittu. Haastattelu-, sijoitus- ja tarjousmerkit näkyvät ansaittuina kohdassa Aiemmin ansaitut.
-- **Tilastot:** lopputulokset, suppilo hausta tarjoukseen, tehtävätyypit, työnantajat ja hakijamäärät.
-- **Hakuloki:** kaikki hakemukset tilan mukaan suodatettavina, ja jokaisen hakemuksen XP. Rivin **Historia** näyttää, milloin hakemus lähti ja milloin se eteni (esim. haastattelu, sitten ei valittu). Väärän merkinnän voi korjata muokkausikkunan kohdasta **Korjaa historiaa**.
+- **Tänään:** hahmo ja sen kilpi (**Vaihda kilpeä** vie Varusteisiin), XP-, viikkotavoite- ja putkimittarit, talteen otetut paikat määräaikoineen (kalenteri, esim. "Haku päättyy 3 pv päästä") ja Tehtävät: hakemukset, joista ei ole kuulunut yli kolmeen viikkoon (kello, "Odottanut 47 pv"). Tehtävistä näkyy ensin kolme, ja **Näytä kaikki** avaa loput. Rivi avaa alleen pikatoiminnot: kuittaa ei valituksi, muistuta myöhemmin tai muokkaa.
+- **Varusteet:** hahmon esikatselu ja kolme kilpeä, jotka avautuvat kirjatuista hylkäyksistä (1, 5 ja 10). Kilpeä voi esikatsella, ja **Ota käyttöön** pukee sen hahmolle. Hakemusetapeilla (1, 10, 25 ja 50 hakemusta) on omat pikseliesineensä ja seuraavan etapin edistyminen, ja muut merkit kertovat, miten ne saa ja miltä viikolta ne on ansaittu. Haastattelu-, sijoitus- ja tarjousmerkit ovat avattavan kohdan **Aiemmat merkit** alla.
+- **Tilastot:** hakemukset viikoittain tavoiterajan kanssa, lopputulokset, suppilo hausta tarjoukseen, tehtävätyypit, työnantajat ja hakijamäärät.
+- **Hakuloki:** kaikki hakemukset tilan mukaan suodatettavina, jokaisen hakemuksen XP ja **CSV-lataus** (kaikki hakemukset ja haettavat suodattimesta riippumatta). Rivin **Historia** näyttää, milloin hakemus lähti ja milloin se eteni (esim. haastattelu, sitten ei valittu). Väärän merkinnän voi korjata muokkausikkunan kohdasta **Korjaa historiaa**.
 - **Haettavat:** kiinnostavan ilmoituksen voi ottaa talteen ennen kuin hakee. Lista järjestyy määräajan mukaan, ja **Merkitse haetuksi** tuo XP:t.
 - **Lisää hakemus:** PALKKIO-paneeli näyttää, paljonko XP:tä tallennus tuo ja miten viikkotavoite etenee.
 - **Puhelimessa:** sovelluksen voi asentaa aloitusnäytölle (PWA). Androidissa se näkyy Jaa-valikossa, joten ilmoituksen saa talteen suoraan LinkedInistä tai selaimesta. Työnantaja, tehtävä ja tehtävätyyppi täyttyvät jaetusta ilmoituksesta valmiiksi.
 - **Pelisäännöt** palkitsevat tekemistä, eivät lopputulosta, joten myös käsitelty hylkäys tuottaa XP:tä. Saavutettu vaihe pysyy: haastattelun jälkeinen hylkäys ei vie haastattelun pisteitä.
-- Tumma ja vaalea teema, mobiilissa alapalkkivalikko, ja **CSV-lataus** varmuuskopioksi.
+- Tumma ja vaalea teema. Valikossa on pikseli-ikonit, ja mobiilissa se on alapalkki. Näkymä näkyy osoitteessa (esim. `#varusteet`), joten siihen voi linkittää ja selaimen takaisin-painike toimii.
 
 ## Tekniikka
 

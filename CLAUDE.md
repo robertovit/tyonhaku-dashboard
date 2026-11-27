@@ -78,7 +78,12 @@ Stack: React 19 + TypeScript + Vite, charts with visx (D3 scales/shapes), Vitest
 A dark JRPG menu: framed panels (`.frame`), DotGothic16 for headings and numbers (`.pix`),
 M PLUS Rounded 1c for body text, lime accent. Dark is the designed theme; the light theme is derived from it.
 The designs are on the owner's Design canvas (kept outside the repo).
-Views are switched from the command menu (`CommandMenu` in `Tabs.tsx`), which becomes a bottom bar under 720 px.
+Views are switched from the command menu (`CommandMenu` in `Tabs.tsx`: Tänään, Varusteet, Hakuloki, Tilastot with
+pixel icons from `Pixels.tsx`, then "+ Lisää hakemus"), which becomes a bottom bar under 720 px. The open view is in
+the URL hash (`#varusteet`; `useView` pushes history entries and follows back/forward). Tänään: character with the worn
+shield, saved ads (`deadlineLabel`, `lib/labels.ts`) and follow-ups (three first, a row opens its quick actions under
+it). Varusteet (`Gear.tsx`): shields, application milestones, other badges, "Aiemmat merkit". Tilastot has the
+weekly chart; Hakuloki has the CSV download.
 The avatar is a 16×16 pixel character (`Avatar.tsx`) that gains an item per level and can wear an earned shield;
 the app icons are drawn from it.
 
@@ -114,8 +119,9 @@ Shields (`lib/shields.ts`): 1, 5 and 10 rejections (`GameState.no`, each applica
 interview too) open three shields that give no XP. There is no separate "closed without an answer" status yet, so a
 search closed by hand as "Ei valittu" counts as well. The worn shield is a per-browser choice (`hooks/useShield.ts`,
 localStorage `tyonhaku:shield:<mode>`); sprites in `components/Shield.tsx` are on the avatar's pixel grid. The
-Esineet panel shows the shields, the effort badges (`COLLECTION_BADGES`; the shields replace "Sinnikäs") and earned
-outcome badges under "Aiemmin ansaitut" (`ARCHIVED_BADGES`); all stay in `GameState.badges`. `celebrationWatch`
+Varusteet view shows the shields (preview, then one "Ota käyttöön"), the effort badges (`COLLECTION_BADGES`: the
+application milestones `APP_MILESTONES` as their own row with `milestoneProgress`, then `EFFORT_BADGES`; the shields replace "Sinnikäs") and earned
+outcome badges under "Aiemmat merkit" (`ARCHIVED_BADGES`); all stay in `GameState.badges`. `celebrationWatch`
 compares only confirmed states (no write pending) after `arm()`, so a failed save and the first load celebrate
 nothing; a rejection never gets confetti, and a newly opened shield comes with "Ota käyttöön" in the toast.
 

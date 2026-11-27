@@ -33,7 +33,8 @@ export function LogTable({
   canWrite: boolean;
   highlight: string | null;
   onEdit: (a: Application) => void;
-  onCsv: (() => void) | null;
+  /** CSV download of everything stored (not just the filtered rows); the label says what it holds. */
+  onCsv: { label: string; run: () => void } | null;
 }) {
   const [stored, setFilter] = useState<Filter>(load);
   const [all, setAll] = useState(false);
@@ -58,6 +59,14 @@ export function LogTable({
           KERÄTTY XP <span className="accent">{xp}</span>
         </span>
       </div>
+      {onCsv && (
+        <div className="log-tools">
+          <button type="button" className="btn sm" onClick={onCsv.run}>
+            {onCsv.label}
+          </button>
+          {filter !== "all" && <span className="sub">Lataus sisältää kaikki, ei vain suodatettuja.</span>}
+        </div>
+      )}
       <div className="filters" role="group" aria-label="Suodata tilan mukaan">
         {(["all", ...present] as Filter[]).map((k) => (
           <button type="button" key={k} className="chip" aria-pressed={filter === k} onClick={() => choose(k)}>
@@ -65,11 +74,6 @@ export function LogTable({
             {k === "all" ? "Kaikki" : STATUS[k].label} <b>{k === "all" ? apps.length : counts[k]}</b>
           </button>
         ))}
-        {onCsv && (
-          <button type="button" className="chip mobile-only" onClick={onCsv}>
-            Lataa CSV
-          </button>
-        )}
       </div>
       <div className="tablewrap">
         <table>

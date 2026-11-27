@@ -92,7 +92,8 @@ export function followups(apps: Application[], today: string) {
     if (days < FOLLOWUP_DAYS) continue;
     (app.snoozeUntil && app.snoozeUntil > today ? snoozed : due).push({ app, since, days });
   }
-  due.sort((x, y) => y.days - x.days);
+  // the longest wait first; ties in a fixed order, so a save that re-sends the list does not reorder the rows
+  due.sort((x, y) => y.days - x.days || x.app.d.localeCompare(y.app.d) || x.app.id.localeCompare(y.app.id));
   return { due, snoozed };
 }
 
