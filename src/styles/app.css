@@ -1195,6 +1195,13 @@ dialog.dlg::backdrop {
   flex-direction: column;
   gap: 18px;
 }
+.dlg-notice {
+  margin: 0;
+  padding: 10px 14px;
+  border: 2px solid var(--warm);
+  border-radius: 6px;
+  font-size: 14px;
+}
 .ai {
   background: var(--inset);
   border: 2px dashed var(--line);

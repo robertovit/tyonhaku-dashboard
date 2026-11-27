@@ -54,21 +54,28 @@ async function readStart(r: Response): Promise<string> {
   return new TextDecoder().decode(all.slice(0, MAX_BYTES));
 }
 
-export interface AdTitle {
+/** What the server found about a shared ad. `role`/`org` are set when the site gives them separately. */
+export interface AdInfo {
   title: string;
-  /** Why there is no title (shown to the owner, in Finnish); "" when there is one. */
+  role: string;
+  org: string;
+  /** Why nothing was found (shown to the owner, in Finnish); "" on success. */
   reason: string;
 }
 
 const LOGIN_WALL = /^\/(authwall|login|signup|uas\/login|checkpoint)/i;
+const wait = (ms: number) => new Promise((ok) => setTimeout(ok, ms));
 
-/** The ad's title, or a reason why the page could not be read. Follows up to 3 redirects, each to a known site. */
-export async function fetchAdTitle(start: URL, fetcher: typeof fetch = fetch): Promise<AdTitle> {
-  const no = (reason: string): AdTitle => ({ title: "", reason });
+/** The start of an HTML page, or why it could not be read. Follows up to 3 redirects, each to a known site,
+ *  and retries once after "429 too many requests". */
+async function getPage(
+  start: URL,
+  fetcher: typeof fetch,
+  signal: AbortSignal,
+): Promise<{ html: string } | { reason: string }> {
   let url = start;
-  const signal = AbortSignal.timeout(5000);
   for (let hop = 0, tries = 0; hop < 4;) {
-    if (LOGIN_WALL.test(url.pathname)) return no(`${url.hostname} vaatii kirjautumisen`);
+    if (LOGIN_WALL.test(url.pathname)) return { reason: `${url.hostname} vaatii kirjautumisen` };
     const r = await fetcher(url.toString(), {
       redirect: "manual",
       signal,
@@ -77,19 +84,59 @@ export async function fetchAdTitle(start: URL, fetcher: typeof fetch = fetch): P
     if (r.status >= 300 && r.status < 400) {
       const to = new URL(r.headers.get("location") ?? "", url);
       const next = allowedAdUrl(to.toString());
-      if (!next) return no(`ohjaus osoitteeseen ${to.hostname}`);
+      if (!next) return { reason: `ohjaus osoitteeseen ${to.hostname}` };
       url = next;
       hop++;
       continue;
     }
     if (r.status === 429 && tries++ === 0) {
-      await new Promise((ok) => setTimeout(ok, 700));
+      await wait(900);
       continue;
     }
-    if (!r.ok) return no(`${url.hostname} vastasi ${r.status}`);
-    if (!(r.headers.get("content-type") ?? "").includes("html")) return no("ei HTML-sivu");
-    const title = extractTitle(await readStart(r));
-    return title ? { title, reason: "" } : no("sivulla ei ollut otsikkoa");
+    if (!r.ok) return { reason: `${url.hostname} vastasi ${r.status}` };
+    if (!(r.headers.get("content-type") ?? "").includes("html")) return { reason: "ei HTML-sivu" };
+    return { html: await readStart(r) };
   }
-  return no("liikaa uudelleenohjauksia");
+  return { reason: "liikaa uudelleenohjauksia" };
+}
+
+/** The job id of a LinkedIn job link (/jobs/view/123…, /jobs/view/title-at-org-123…, ?currentJobId=123…). */
+export function linkedinJobId(u: URL): string | null {
+  if (!/(^|\.)linkedin\.com$/i.test(u.hostname)) return null;
+  const m = u.pathname.match(/\/jobs\/view\/(?:[^/]*?-)?(\d{6,})(?:\/|$)/);
+  const q = u.searchParams.get("currentJobId");
+  return m?.[1] ?? (q && /^\d{6,}$/.test(q) ? q : null);
+}
+
+/** Role and employer from LinkedIn's guest job posting page (the HTML the public job page is built from). */
+export function parseLinkedinPosting(html: string): { role: string; org: string } {
+  const text = (re: RegExp) =>
+    decode((html.match(re)?.[1] ?? "").replace(/<[^>]*>/g, " "))
+      .replace(/\s+/g, " ")
+      .trim();
+  return {
+    role: text(/<h[12][^>]*top-card-layout__title[^>]*>([\s\S]*?)<\/h[12]>/i).slice(0, 200),
+    org: text(/<a[^>]*topcard__org-name-link[^>]*>([\s\S]*?)<\/a>/i).slice(0, 200),
+  };
+}
+
+/** Everything the server can find about a shared ad link: for LinkedIn first its guest posting page (role and
+ *  employer separately), then for any known site the page title. */
+export async function fetchAd(start: URL, fetcher: typeof fetch = fetch): Promise<AdInfo> {
+  const signal = AbortSignal.timeout(8000);
+  let reason = "";
+  const id = linkedinJobId(start);
+  if (id) {
+    const guest = new URL(`https://www.linkedin.com/jobs-guest/jobs/api/jobPosting/${id}`);
+    const page = await getPage(guest, fetcher, signal);
+    if ("html" in page) {
+      const { role, org } = parseLinkedinPosting(page.html);
+      if (role) return { title: "", role, org, reason: "" };
+      reason = "LinkedIn ei antanut ilmoituksen tietoja";
+    } else reason = page.reason;
+  }
+  const page = await getPage(start, fetcher, signal);
+  if ("reason" in page) return { title: "", role: "", org: "", reason: reason || page.reason };
+  const title = extractTitle(page.html);
+  return { title, role: "", org: "", reason: title ? "" : reason || "sivulla ei ollut otsikkoa" };
 }

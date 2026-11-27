@@ -154,16 +154,22 @@ export const blobDownloads: Downloads = {
   },
 };
 
-/** Asks the server for a shared link's page title (functions/api/ad-title.ts). Never throws. */
+/** Asks the server what it can find about a shared link (functions/api/ad-title.ts). Never throws. */
 export async function adTitle(url: string, f: Fetch = (...a) => fetch(...a)): Promise<AdTitle> {
   try {
-    const r = await call<{ title?: unknown; reason?: unknown }>(f, `/ad-title?url=${encodeURIComponent(url)}`, {
-      signal: AbortSignal.timeout(7000),
+    const r = await call<Record<string, unknown>>(f, `/ad-title?url=${encodeURIComponent(url)}`, {
+      signal: AbortSignal.timeout(11000),
     });
-    const title = typeof r.title === "string" ? r.title : "";
-    return { title, reason: title ? "" : typeof r.reason === "string" ? r.reason : "" };
+    const s = (v: unknown) => (typeof v === "string" ? v : "");
+    const found = { title: s(r.title), role: s(r.role), org: s(r.org) };
+    return { ...found, reason: found.title || found.role ? "" : s(r.reason) };
   } catch (e) {
-    return { title: "", reason: e instanceof UserFacingError ? e.message : "palvelin ei vastannut" };
+    return {
+      title: "",
+      role: "",
+      org: "",
+      reason: e instanceof UserFacingError ? e.message : "palvelin ei vastannut ajoissa",
+    };
   }
 }
 

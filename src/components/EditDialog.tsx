@@ -89,6 +89,8 @@ export interface EditTarget {
   app: Application | null; // null = new application
   /** Fields to start from, e.g. a shared ad or "mark as applied" on a saved one. */
   prefill?: Partial<Pick<Draft, "status" | "d" | "url" | "role" | "org">>;
+  /** A note shown at the top of the dialog, e.g. why a shared ad's details could not be read. */
+  notice?: string;
 }
 
 export function EditDialog({
@@ -246,6 +248,11 @@ export function EditDialog({
           </div>
           <div className="dlg-body">
             <div className="dlg-main">
+              {target.notice && (
+                <p className="dlg-notice" role="status">
+                  {target.notice}
+                </p>
+              )}
               {assistant && (
                 <AiFill key={app?.id ?? "new"} assistant={assistant} openByDefault={!app} onResult={applyAd} />
               )}

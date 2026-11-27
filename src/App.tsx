@@ -119,15 +119,17 @@ export default function App() {
     history.replaceState(null, "", location.pathname + location.hash);
     setView("tanaan");
     void (async () => {
-      let title = shared.title;
-      if (!title && shared.url && adTitle) {
+      let found = { ...splitAdTitle(shared.title), notice: "" };
+      if (!shared.title && shared.url && adTitle) {
         show("Haetaan ilmoituksen tietoja…");
         const r = await adTitle(shared.url);
-        title = r.title;
-        if (!title) show("Ilmoituksen tietoja ei saatu", r.reason ? `Syy: ${r.reason}. Täytä kentät itse.` : undefined);
+        if (r.role) found = { role: r.role, org: r.org, notice: "" };
+        else if (r.title) found = { ...splitAdTitle(r.title), notice: "" };
+        else
+          found.notice = `Ilmoituksen tietoja ei saatu${r.reason ? ` (${r.reason})` : ""}. Linkki on tallessa, täytä muut kentät itse.`;
       }
-      const { role, org } = splitAdTitle(title);
-      setEdit({ app: null, prefill: { status: "todo", d: today, url: shared.url, role, org } });
+      const { role, org, notice } = found;
+      setEdit({ app: null, prefill: { status: "todo", d: today, url: shared.url, role, org }, notice });
     })();
   }, [shared, canWrite, today, setView, adTitle, show]);
 

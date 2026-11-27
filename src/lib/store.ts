@@ -36,9 +36,12 @@ export interface Assistant {
   fillFromAd(text: string, image: File | null, signal: AbortSignal): Promise<AdFields>;
 }
 
-/** A shared link's page title; `reason` (Finnish, for the owner) says why there is none. */
+/** What the server found about a shared link: a page title, or role and employer when the site gives them
+ *  separately; `reason` (Finnish, for the owner) says why there is nothing. */
 export interface AdTitle {
   title: string;
+  role: string;
+  org: string;
   reason: string;
 }
 
