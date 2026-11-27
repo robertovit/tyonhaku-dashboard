@@ -27,8 +27,16 @@ export function demoSeed(today: string): Docs {
     ];
   });
 
-  const doc = (d: string, end: string, org: string, role: string, type: string, status: string) => ({
-    schema: 1,
+  const doc = (
+    d: string,
+    end: string,
+    org: string,
+    role: string,
+    type: string,
+    status: string,
+    events: { status: string; d: string }[] = [],
+  ) => ({
+    schema: 2,
     d,
     end,
     org,
@@ -45,6 +53,7 @@ export function demoSeed(today: string): Docs {
     createdAt: `${d}T00:00:00Z`,
     updatedAt: `${d}T00:00:00Z`,
     snoozeUntil: "",
+    events,
   });
   // Saved ads (Haettavat) with deadlines in a few days, and two applications sent this week (weekly goal 2/3).
   const monday = addDays(today, -weekday(today));
@@ -52,6 +61,14 @@ export function demoSeed(today: string): Docs {
     ...apps,
     ["demo-sent-1", doc(monday, "", "Tunturi Analytics Oy", "Data-analyytikko", "expert", "wait")],
     ["demo-sent-2", doc(today, "", "Saaristo Software Oy", "Junior Developer Trainee", "trainee", "wait")],
+    // An interview followed by a rejection: the history shows both, and the interview keeps its XP.
+    [
+      "demo-hist-1",
+      doc(addDays(today, -24), "", "Revontuli Insight Oy", "BI-analyytikko", "expert", "no", [
+        { status: "int", d: addDays(today, -14) },
+        { status: "no", d: addDays(today, -3) },
+      ]),
+    ],
     [
       "demo-todo-1",
       doc(addDays(today, -2), fmtDate(addDays(today, 3)), "Kuusikko Data Oy", "Junior Data Analyst", "expert", "todo"),

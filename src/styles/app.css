@@ -1348,6 +1348,107 @@ fieldset.status legend {
   font-size: 14px;
   color: var(--accent-ink);
 }
+/* application history: in the edit dialog and under a log row */
+.dlg-main > .hint,
+.fgrid > .hint {
+  margin: 0;
+  font-size: 14px;
+  color: var(--muted);
+}
+.fgrid > .hint {
+  align-self: center;
+}
+.history {
+  background: var(--inset);
+  border: 2px solid var(--line);
+  border-radius: 6px;
+  padding: 12px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.history-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+.history h3 {
+  margin: 0;
+  font-family: var(--font-pix);
+  font-weight: 400;
+  font-size: 16px;
+}
+.history .hint {
+  margin: 0;
+  font-size: 14px;
+  color: var(--muted);
+}
+.history > .btn {
+  align-self: flex-start;
+}
+.timeline {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 15px;
+}
+.timeline li {
+  display: grid;
+  grid-template-columns: 4.5em minmax(0, 1fr);
+  gap: 10px;
+  align-items: center;
+}
+.timeline .pix {
+  font-family: var(--font-pix);
+  color: var(--muted);
+  white-space: nowrap;
+}
+.timeline li.new {
+  color: var(--accent-ink);
+}
+.timeline li.new .pix {
+  color: var(--accent-ink);
+}
+.timeline small {
+  font-size: 13px;
+}
+.timeline.fix li {
+  grid-template-columns: minmax(0, 1fr) 11em auto;
+}
+td .hist {
+  margin-top: 4px;
+  font-size: 14px;
+}
+td .hist summary {
+  cursor: pointer;
+  color: var(--accent-ink);
+  width: max-content;
+  min-height: 28px;
+  display: flex;
+  align-items: center;
+}
+td .hist summary::marker {
+  content: "";
+}
+td .hist summary::-webkit-details-marker {
+  display: none;
+}
+td .hist summary::before {
+  content: "▶ ";
+  font-family: var(--font-pix);
+  white-space: pre;
+}
+td .hist[open] summary::before {
+  content: "▼ ";
+}
+td .hist .timeline {
+  margin: 4px 0 2px;
+  font-size: 14px;
+}
 .reward {
   flex: 1 1 260px;
   min-width: 0;
@@ -1608,6 +1709,18 @@ fieldset.status legend {
   }
   .kpi .v {
     font-size: 32px;
+  }
+  .timeline.fix li {
+    grid-template-columns: minmax(0, 1fr) auto;
+    row-gap: 4px;
+  }
+  .timeline.fix li > input {
+    order: 2;
+    grid-column: 1 / -1;
+  }
+  .timeline.fix li + li {
+    padding-top: 6px;
+    border-top: 1px solid var(--line-2);
   }
   dialog.dlg {
     width: 100vw;

@@ -7,7 +7,14 @@ const idOf = (p: string | string[]) => (Array.isArray(p) ? p[0] : p);
 export const onRequestPut: PagesFunction<Env> = async ({ request, env, params }) => {
   const id = idOf(params.id);
   if (!validId(id)) return fail("Virheellinen tunniste.", 400);
-  const doc = cleanDoc(await readJson(request));
+  const body = await readJson(request);
+  // An installed app from before the history (schema 1) sends no `events`: keep the stored ones, so a status
+  // change from an old cached version does not drop an interview that was already recorded.
+  if (body && typeof body === "object" && !Array.isArray(body) && !("events" in body)) {
+    const cur = await getDoc(env.DB, id);
+    if (cur && Array.isArray(cur.events)) (body as Record<string, unknown>).events = cur.events;
+  }
+  const doc = cleanDoc(body);
   if (!doc) return fail("Virheellinen hakemus.", 400);
   await upsert(env.DB, id, doc).run();
   return json({ id, doc });

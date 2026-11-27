@@ -83,18 +83,28 @@ The avatar is a 16×16 pixel character (`Avatar.tsx`) that gains an item per lev
 ## Data model
 
 `applications/<id>` holds `ApplicationDoc` (see `model.ts`); the goal is `{weekly}`.
-Every document carries `schema` (currently 1). When adding fields: bump `SCHEMA`, give the field a default in
+Every document carries `schema` (currently 2). When adding fields: bump `SCHEMA`, give the field a default in
 `normalize()` so old documents keep working, and add it to `toDoc()`.
 Statuses: `todo` (haettava: a saved ad, not applied yet), `wait` (ei vastausta), `no` (ei valittu),
 `int` (haastattelu), `offer` (tarjous). For `todo`, `d` is the day it was saved; "Merkitse haetuksi" sets
 `status: wait` and `d` to today.
+History (schema 2): `events` lists the stages reached after sending (`int`, `offer`, `no`), each once, as
+`{status, d}`; `d` of the application stays the send date and `""` means the day is not known. `normalize()` gives
+a schema 1 document one undated event for its current status (an old rejection says nothing about an interview)
+and always keeps the current status in the history. `lib/history.ts`: `recordStatus` is what every status update
+saves (edit dialog with its day field, the Today quick rejection); taking a stage out (`withoutStage`) is the
+deliberate correction under "Korjaa historiaa" in the dialog. The log row opens the same timeline. The server's
+`PUT` keeps the stored `events` when an older installed app sends a document without them.
 `App.tsx` splits the list: saved ads go to the Haettavat panel and everything else (game, stats, log,
 follow-ups) only sees sent applications. Open applications (`type: "open"`) are excluded from follow-up reminders.
 
 ## Game rules
 
 XP, levels, streaks and badges are derived from the applications in `game.ts` – nothing extra is stored.
-`xpParts`/`xpForApp` give one application's XP (0 for `todo`); `badgeWeeks` replays the applications to date each badge.
+`xpParts`/`xpForApp` give one application's XP (0 for `todo`); `badgeWeeks` replays the applications to date each badge
+(a dated stage from its own day). Outcome XP, badges and the funnel count the stages reached (`hadInterview`, …),
+so a rejection after an interview keeps the interview (10 → 60 → 63); an offer counts as an interview too. The
+outcome counts and the log show the current status. `statusGain` is the forecast in the dialog and the Today panel.
 Rewards effort, not outcomes (a handled rejection also gives XP). Tests in `src/lib/logic.test.ts` pin the
 known values of the fixture (380 XP, level 3, 10/14 badges, 3 follow-ups); update them deliberately when rules change.
 

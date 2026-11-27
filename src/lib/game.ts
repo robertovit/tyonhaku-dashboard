@@ -1,7 +1,10 @@
 // Game layer: XP, levels, streaks and badges are all derived from the applications; nothing extra is stored.
+// Outcome XP counts each stage an application has reached (lib/history.ts), so a rejection after an interview
+// keeps the interview, and a stage recorded twice still counts once.
 import { isoWeek } from "./dates";
+import { asOf, hadInterview, hadOffer, hadRejection, recordStatus } from "./history";
 import { weeklySeries } from "./stats";
-import type { Application } from "./model";
+import type { Application, StageEvent, Status } from "./model";
 
 export const XP_RULES = {
   application: 10,
@@ -182,9 +185,9 @@ export function gameState(apps: Application[], goal: number, today: string): Gam
     total: apps.length,
     tailored: apps.filter((a) => a.cv.trim()).length,
     letters: apps.filter((a) => /saatekirje/i.test(a.att)).length,
-    no: apps.filter((a) => a.status === "no").length,
-    interviews: apps.filter((a) => a.status === "int" || a.status === "offer").length,
-    offers: apps.filter((a) => a.status === "offer").length,
+    no: apps.filter(hadRejection).length,
+    interviews: apps.filter(hadInterview).length,
+    offers: apps.filter(hadOffer).length,
     top: apps.filter((a) => a.top).length,
     maxN: Math.max(0, ...apps.map((a) => a.n ?? 0)),
     maxDay: Math.max(0, ...perDay.values()),
@@ -208,31 +211,35 @@ export interface XpPart {
   xp: number;
 }
 /** What one application is worth on its own (weekly bonuses come on top). Matches the sums in gameState(). */
-export function xpParts(a: Pick<Application, "cv" | "att" | "status">): XpPart[] {
+type XpInput = Pick<Application, "cv" | "att" | "status"> & { events?: StageEvent[] };
+export function xpParts(a: XpInput): XpPart[] {
   const r = XP_RULES;
   if (a.status === "todo") return [];
   const parts: XpPart[] = [{ label: "Hakemus", xp: r.application }];
   if (a.cv.trim()) parts.push({ label: "Räätälöity CV", xp: r.tailoredCv });
   if (/saatekirje/i.test(a.att)) parts.push({ label: "Saatekirje", xp: r.coverLetter });
-  if (a.status === "no") parts.push({ label: "Ei-valinta käsitelty", xp: r.rejectionHandled });
-  if (a.status === "int" || a.status === "offer") parts.push({ label: "Haastattelu", xp: r.interview });
-  if (a.status === "offer") parts.push({ label: "Tarjous", xp: r.offer });
+  if (hadRejection(a)) parts.push({ label: "Ei-valinta käsitelty", xp: r.rejectionHandled });
+  if (hadInterview(a)) parts.push({ label: "Haastattelu", xp: r.interview });
+  if (hadOffer(a)) parts.push({ label: "Tarjous", xp: r.offer });
   return parts;
 }
-export const xpForApp = (a: Pick<Application, "cv" | "att" | "status">) => xpParts(a).reduce((s, p) => s + p.xp, 0);
+export const xpForApp = (a: XpInput) => xpParts(a).reduce((s, p) => s + p.xp, 0);
+/** What setting `status` adds to the stages an application has already reached (0 for one reached before). */
+export const statusGain = (a: Pick<Application, "cv" | "att" | "events">, status: Status) =>
+  xpForApp({ ...a, status, events: recordStatus(a.events, status, "") }) - xpForApp({ ...a, status: "wait" });
 export const avgXpPerApp = (apps: Application[]) =>
   apps.length ? apps.reduce((s, a) => s + xpForApp(a), 0) / apps.length : XP_RULES.application;
 
 /**
  * ISO week in which each earned badge was first reached, found by replaying the applications day by day.
- * Statuses are taken as they are now, so an outcome badge counts from the application's date.
+ * A dated stage counts from its own day; an undated one (older data) from the application's date.
  */
 export function badgeWeeks(apps: Application[], goal: number, today: string): Record<string, number> {
   const out: Record<string, number> = {};
-  const days = [...new Set(apps.map((a) => a.d))].sort();
-  for (const d of days) {
+  const days = [...new Set(apps.flatMap((a) => [a.d, ...a.events.map((e) => e.d).filter((d) => d && d <= today)]))];
+  for (const d of days.sort()) {
     const g = gameState(
-      apps.filter((a) => a.d <= d),
+      apps.filter((a) => a.d <= d).map((a) => asOf(a, d)),
       goal,
       d,
     );

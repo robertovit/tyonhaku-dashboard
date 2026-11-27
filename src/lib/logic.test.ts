@@ -32,7 +32,15 @@ describe("dates", () => {
 describe("model", () => {
   it("normalizes partial and old documents", () => {
     const a = normalize("x", { org: "Testi", role: "Data Trainee" }, today);
-    expect(a).toMatchObject({ d: today, status: "wait", type: "trainee", n: null, schema: 1, snoozeUntil: "" });
+    expect(a).toMatchObject({
+      d: today,
+      status: "wait",
+      type: "trainee",
+      n: null,
+      schema: 2,
+      snoozeUntil: "",
+      events: [],
+    });
     expect(normalize("y", { status: "bogus", url: "javascript:alert(1)" }, today)).toMatchObject({
       status: "wait",
       url: "",

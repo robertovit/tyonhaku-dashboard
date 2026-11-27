@@ -1,9 +1,19 @@
 /** `todo` = saved ad, not applied yet: it earns no XP and stays out of the statistics until applied. */
 export type Status = "offer" | "int" | "wait" | "no" | "todo";
 export type JobType = "trainee" | "expert" | "open";
+/** Outcomes reached after sending; each one is recorded once in `events` (see lib/history.ts). */
+export type Stage = "int" | "offer" | "no";
+export const STAGES: Stage[] = ["int", "offer", "no"];
+export const isStage = (s: string): s is Stage => (STAGES as string[]).includes(s);
+
+/** A stage reached on day `d` (YYYY-MM-DD; "" = not known, e.g. data from before the history existed). */
+export interface StageEvent {
+  status: Stage;
+  d: string;
+}
 
 /** Current shape of a stored application document. Bump SCHEMA and extend normalize() when fields change. */
-export const SCHEMA = 1;
+export const SCHEMA = 2;
 
 export interface ApplicationDoc {
   schema: number;
@@ -23,6 +33,7 @@ export interface ApplicationDoc {
   createdAt: string;
   updatedAt: string;
   snoozeUntil: string; // YYYY-MM-DD, hides the follow-up reminder until then
+  events: StageEvent[]; // stages reached after sending (interview, offer, rejection); `d` above stays the send date
 }
 
 export interface Application extends ApplicationDoc {
@@ -56,6 +67,24 @@ export function classifyType(org: string, role: string): JobType {
 const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/;
 const str = (v: unknown) => (typeof v === "string" ? v : "");
 
+/**
+ * The stored history, cleaned: one event per stage, none for a saved ad. A document from before the history
+ * (schema 1) gets one event for its current status with an unknown date; nothing earlier is guessed, so an old
+ * rejection does not say whether there was an interview. The current status is always in the history.
+ */
+function cleanEvents(raw: unknown, status: Status): StageEvent[] {
+  if (status === "todo") return [];
+  const out: StageEvent[] = [];
+  for (const e of Array.isArray(raw) ? (raw as unknown[]) : []) {
+    const s = str((e as { status?: unknown } | null)?.status);
+    if (!isStage(s) || out.some((x) => x.status === s)) continue;
+    const d = str((e as { d?: unknown }).d);
+    out.push({ status: s, d: ISO_DATE.test(d) ? d : "" });
+  }
+  if (isStage(status) && !out.some((x) => x.status === status)) out.push({ status, d: "" });
+  return out;
+}
+
 /** Turns any stored document (old or partial) into a complete Application. */
 export function normalize(id: string, raw: Record<string, unknown> | undefined, today: string): Application {
   const x = raw ?? {};
@@ -64,6 +93,7 @@ export function normalize(id: string, raw: Record<string, unknown> | undefined, 
   const n = typeof x.n === "number" && Number.isFinite(x.n) ? x.n : null;
   const note = str(x.note);
   const url = str(x.url);
+  const st: Status = status in STATUS ? status : "wait";
   return {
     id,
     schema: typeof x.schema === "number" ? x.schema : SCHEMA,
@@ -76,13 +106,14 @@ export function normalize(id: string, raw: Record<string, unknown> | undefined, 
     cv: str(x.cv),
     note,
     url: /^https?:\/\//.test(url) ? url : "",
-    status: status in STATUS ? status : "wait",
+    status: st,
     type: type in TYPES ? type : classifyType(str(x.org), str(x.role)),
     n,
     nPlus: !!x.nPlus,
     createdAt: str(x.createdAt),
     updatedAt: str(x.updatedAt),
     snoozeUntil: ISO_DATE.test(str(x.snoozeUntil)) ? str(x.snoozeUntil) : "",
+    events: cleanEvents(x.events, st),
     top: /n(r|ro)\.? ?1\b/i.test(note),
   };
 }
@@ -107,6 +138,7 @@ export function toDoc(a: Application | ApplicationDoc): ApplicationDoc {
     createdAt: a.createdAt,
     updatedAt: a.updatedAt,
     snoozeUntil: a.snoozeUntil,
+    events: a.events.map((e) => ({ status: e.status, d: e.d })),
   };
 }
 

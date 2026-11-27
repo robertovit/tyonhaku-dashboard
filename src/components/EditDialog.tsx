@@ -1,8 +1,10 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { weekKey } from "../lib/dates";
-import { gameState, xpForApp, xpParts } from "../lib/game";
+import { fmtDate, weekKey } from "../lib/dates";
+import { gameState, statusGain, xpParts } from "../lib/game";
+import { recordStatus } from "../lib/history";
 import {
   classifyType,
+  isStage,
   newId,
   normalize,
   STATUS,
@@ -12,9 +14,12 @@ import {
   type Application,
   type ApplicationDoc,
   type JobType,
+  type Stage,
+  type StageEvent,
   type Status,
 } from "../lib/model";
 import { UserFacingError, type AdFields, type Assistant } from "../lib/store";
+import { HistoryBox } from "./History";
 
 interface Draft {
   status: Status;
@@ -30,6 +35,10 @@ interface Draft {
   att: string;
   cv: string;
   url: string;
+  /** The history as it will be saved (corrections included), without the stage the new status adds. */
+  events: StageEvent[];
+  /** Day of the stage the new status adds ("" = not known). Kept apart from `d`, the send date. */
+  eventDate: string;
 }
 type AdField = "org" | "role" | "end" | "how" | "att" | "url" | "n";
 const LABELS: Record<string, string> = {
@@ -45,7 +54,7 @@ const LABELS: Record<string, string> = {
 
 const fromApp = (a: Application | null, today: string): Draft =>
   a
-    ? { ...a, n: a.n != null ? String(a.n) : "" }
+    ? { ...a, n: a.n != null ? String(a.n) : "", eventDate: today }
     : {
         status: "wait",
         n: "",
@@ -60,7 +69,12 @@ const fromApp = (a: Application | null, today: string): Draft =>
         att: "",
         cv: "",
         url: "",
+        events: [],
+        eventDate: today,
       };
+/** The stage this save would add, if the chosen status has not been reached before. */
+const newStage = (draft: Draft): Stage | null =>
+  isStage(draft.status) && !draft.events.some((e) => e.status === draft.status) ? draft.status : null;
 
 function buildDoc(draft: Draft, app: Application | null, now: string): ApplicationDoc {
   const n = draft.n.trim() === "" ? null : Math.round(Number(draft.n));
@@ -82,6 +96,7 @@ function buildDoc(draft: Draft, app: Application | null, now: string): Applicati
     createdAt: app?.createdAt || now,
     updatedAt: now,
     snoozeUntil: app?.snoozeUntil ?? "",
+    events: recordStatus(draft.events, draft.status, draft.eventDate),
   });
 }
 
@@ -192,6 +207,10 @@ export function EditDialog({
     if (n != null && !(n >= 0)) return setError("Hakijoiden määrän pitää olla luku.");
     const url = draft.url.trim();
     if (url && !/^https?:\/\//.test(url)) return setError("Linkin pitää alkaa https://");
+    const events = recordStatus(draft.events, draft.status, draft.eventDate);
+    const early = events.find((e) => e.d && e.d < draft.d);
+    if (early)
+      return setError(`${STATUS[early.status].label} ${fmtDate(early.d)} on ennen hakupäivää. Tarkista päivät.`);
     const doc = buildDoc(draft, app, new Date().toISOString());
     setSaving(true);
     setError("");
@@ -225,8 +244,9 @@ export function EditDialog({
           ? "Uusi haettava"
           : "Uusi hakemus";
   const f = (k: string, size = "") => `field${size ? ` ${size}` : ""}${filled.has(k) ? " filled" : ""}`;
-  const base = { cv: draft.cv, att: draft.att };
-  const statusXp = (k: Status) => xpForApp({ ...base, status: k }) - xpForApp({ ...base, status: "wait" });
+  // The stage this save adds to the history; or a hint when the chosen stage is there already.
+  const adds = newStage(draft);
+  const already = !adds && isStage(draft.status) && app?.status !== draft.status;
   return (
     <dialog ref={ref} className="frame dlg" aria-labelledby="dlgTitle" onClose={onClose} onCancel={onClose}>
       {target && (
@@ -355,7 +375,7 @@ export function EditDialog({
                 <legend>Tila</legend>
                 <div className="scards">
                   {(["todo", "wait", "no", "int", "offer"] as Status[]).map((k) => {
-                    const gain = statusXp(k);
+                    const gain = statusGain(draft, k);
                     return (
                       <label key={k} className="scard">
                         <input
@@ -373,6 +393,31 @@ export function EditDialog({
                   })}
                 </div>
               </fieldset>
+              {adds && (
+                <div className="fgrid">
+                  <div className="field s">
+                    <label htmlFor="f-ed">{STATUS[adds].label}: päivä</label>
+                    <input
+                      id="f-ed"
+                      type="date"
+                      value={draft.eventDate}
+                      onChange={(e) => set("eventDate", e.target.value)}
+                    />
+                  </div>
+                  <span className="hint field">
+                    Kirjataan hakemuksen historiaan. Valitse päivä, jolloin sait tiedon, jos se ei ollut tänään.
+                  </span>
+                </div>
+              )}
+              {already && (
+                <p className="hint">
+                  {STATUS[draft.status].label} on jo historiassa, joten siitä ei tule pisteitä uudelleen. Jos aiempi
+                  merkintä oli virhe, korjaa se historiasta.
+                </p>
+              )}
+              {app && app.status !== "todo" && (
+                <HistoryBox draft={draft} onFix={(fix) => setDraft((p) => ({ ...p, ...fix }))} />
+              )}
               <div className="fgrid">
                 <div className={f("n", "s")}>
                   <label htmlFor="f-n">Hakijoiden määrä</label>
