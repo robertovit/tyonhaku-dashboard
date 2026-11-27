@@ -1,5 +1,5 @@
-// The app talks to its data only through these interfaces. Two implementations: lib/web.ts (own server,
-// Cloudflare Pages Functions + D1) and lib/claude.ts (claude.ai artifact runtime); lib/backend.ts picks one.
+// The app talks to its data only through these interfaces. Implementations: lib/web.ts (own server,
+// Cloudflare Pages Functions + D1) and dev/memory.ts (`npm run dev` only); lib/backend.ts picks one.
 import type { Backup } from "./backup";
 import type { Application, ApplicationDoc } from "./model";
 

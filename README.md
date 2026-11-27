@@ -31,7 +31,7 @@ Sovellus pyörii Cloudflare Pagesissa:
 Rakenteesta:
 
 - `src/lib/` sisältää puhtaan logiikan ilman Reactia: datamalli, päivämäärät, tilastot, pelisäännöt ja CSV. Päivä annetaan funktioille parametrina, joten testit ovat deterministisiä.
-- `src/lib/store.ts` määrittelee rajapinnat, joita käyttöliittymä käyttää. Toteutuksia on kaksi: oma palvelin (`web.ts`) ja claude.ai-artifact (`claude.ts`), josta sovellus alun perin lähti.
+- `src/lib/store.ts` määrittelee rajapinnat, joita käyttöliittymä käyttää. Toteutus on `web.ts`, joka puhuu omalle palvelimelle. `npm run dev` käyttää sen sijaan muistissa toimivaa esimerkkidataa (`src/dev/memory.ts`).
 - `functions/` on palvelimen rajapinta. Se tarkistaa kirjautumisen ja validoi jokaisen hakemuksen samalla datamallilla kuin käyttöliittymä.
 - `src/components/` on käyttöliittymä ja `src/components/charts/` kaaviot.
 

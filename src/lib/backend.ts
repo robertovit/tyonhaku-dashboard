@@ -1,7 +1,7 @@
-// Picks the data backend at build time. `npm run build` → own server (web.ts);
-// `npm run build:artifact` and `npm run dev` (with its in-memory mock) → claude.ai runtime (claude.ts).
-import { connect as artifactConnect } from "./claude";
+// Picks the data backend: the own server (web.ts) in the build, and in `npm run dev` an in-memory backend with
+// invented example data (src/dev/memory.ts). The DEV branch is removed from the build, dev code included.
+import type { Backend } from "./store";
 import { connect as webConnect } from "./web";
 
-export const TARGET = import.meta.env.MODE === "artifact" || import.meta.env.DEV ? "artifact" : "web";
-export const connect = TARGET === "artifact" ? artifactConnect : webConnect;
+export const connect = (): Promise<Backend> =>
+  import.meta.env.DEV ? import("../dev/memory").then((m) => m.connect()) : webConnect();
