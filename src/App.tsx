@@ -9,7 +9,7 @@ import { Confetti, Toast } from "./components/Effects";
 import { CommandMenu, useView } from "./components/Tabs";
 import { useBackend } from "./hooks/useBackend";
 import { useCelebration } from "./hooks/useCelebration";
-import { useShield } from "./hooks/useShield";
+import { useGear } from "./hooks/useGear";
 import { useToast } from "./hooks/useToast";
 import { addDays, dayDiff, deadlineIso, fmtDate, isoWeek, todayIso, weekday } from "./lib/dates";
 import { badgeWeeks, gameState } from "./lib/game";
@@ -31,12 +31,12 @@ export default function App() {
   const canWrite = !!store && store.canWrite !== false;
   const today = todayIso();
   const [view, setView] = useView();
-  // "Vaihda kilpeä" opens Varusteet at the shields: the heading takes focus once the view is shown.
+  // "Vaihda varusteita" opens Varusteet at the gear: the shields' heading takes focus once the view is shown.
   const [toShields, setToShields] = useState(false);
   useEffect(() => {
     if (!toShields || view !== "varusteet") return;
     setToShields(false);
-    const h = document.getElementById("shieldsH");
+    const h = document.getElementById("shieldH");
     h?.scrollIntoView({ block: "start" });
     h?.focus({ preventScroll: true });
   }, [toShields, view]);
@@ -72,9 +72,11 @@ export default function App() {
   const game = useMemo(() => (apps ? gameState(list, goal, today) : null), [apps, list, goal, today]);
   const { arm, celebration } = useCelebration(game, pending);
   useEffect(() => {
-    if (celebration) show(celebration.title, celebration.text, celebration.shield);
+    if (!celebration) return;
+    const { title, text, shield, post } = celebration;
+    show(title, text, shield ? { slot: "shield", item: shield } : post ? { slot: "post", item: post } : undefined);
   }, [celebration, show]);
-  const { shield, equip } = useShield(game?.no ?? 0);
+  const { shield, post, equipShield, equipPost } = useGear(game?.no ?? 0, game?.total ?? 0);
 
   const weeks = useMemo(() => weeklySeries(list, today), [list, today]);
   const fu = useMemo(() => followups(list, today), [list, today]);
@@ -224,7 +226,8 @@ export default function App() {
               className="linkbtn"
               onClick={() =>
                 void backend.demo!.reset().then(() => {
-                  equip(null);
+                  equipShield(null);
+                  equipPost(null);
                   show("Esimerkkidata palautettu", "Muutoksesi poistettiin.");
                 })
               }
@@ -283,6 +286,7 @@ export default function App() {
                   canWrite={canWrite}
                   onGoal={(n) => guard(() => store!.setGoal(n))}
                   shield={shield}
+                  post={post}
                   onShields={openShields}
                 />
                 <TodoPanel items={todos} canWrite={canWrite} onApply={openApply} onEdit={(a) => setEdit({ app: a })} />
@@ -313,9 +317,12 @@ export default function App() {
                     game={game}
                     fresh={celebration?.newBadges ?? []}
                     freshShield={celebration?.shield?.id}
+                    freshPost={celebration?.post?.id}
                     weeks={earnedWeeks}
                     shield={shield}
-                    onEquip={equip}
+                    post={post}
+                    onShield={equipShield}
+                    onPost={equipPost}
                   />
                 )}
               </div>
@@ -418,9 +425,10 @@ export default function App() {
       />
       <Toast
         toast={toast}
-        onEquip={(s) => {
-          equip(s.id);
-          show(`${s.name} käytössä`, "Vaihda tai poista käytöstä Varusteissa.");
+        onEquip={(u) => {
+          if (u.slot === "shield") equipShield(u.item.id);
+          else equipPost(u.item.id);
+          show(`${u.item.name} käytössä`, "Vaihda tai poista käytöstä Varusteissa.");
         }}
       />
       <Confetti burst={celebration?.key ?? 0} count={celebration?.confetti ?? 0} />

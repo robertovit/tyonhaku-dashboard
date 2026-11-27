@@ -1,16 +1,16 @@
 import { useEffect, useRef } from "react";
-import type { ToastMsg } from "../hooks/useToast";
-import type { Shield } from "../lib/shields";
+import type { ToastMsg, Unlock } from "../hooks/useToast";
+import { PostIcon } from "./Post";
 import { ShieldIcon } from "./Shield";
 
-/** Bottom message. A newly unlocked shield comes with its picture and "Ota käyttöön". */
-export function Toast({ toast, onEquip }: { toast: ToastMsg | null; onEquip: (shield: Shield) => void }) {
-  const shield = toast?.shield;
+/** Bottom message. A newly unlocked shield or post item comes with its picture and "Ota käyttöön". */
+export function Toast({ toast, onEquip }: { toast: ToastMsg | null; onEquip: (unlock: Unlock) => void }) {
+  const unlock = toast?.unlock;
   return (
-    <div className={`toast${shield ? " with-shield" : ""}`} hidden={!toast}>
-      {shield && (
-        <span className="shield-icon">
-          <ShieldIcon id={shield.id} />
+    <div className={`toast${unlock ? " with-unlock" : ""}`} hidden={!toast}>
+      {unlock && (
+        <span className={unlock.slot === "shield" ? "shield-icon" : "shield-icon post-icon"}>
+          {unlock.slot === "shield" ? <ShieldIcon id={unlock.item.id} /> : <PostIcon id={unlock.item.id} />}
         </span>
       )}
       <div className="toast-msg" role="status" aria-live="polite">
@@ -21,8 +21,8 @@ export function Toast({ toast, onEquip }: { toast: ToastMsg | null; onEquip: (sh
           </>
         )}
       </div>
-      {shield && (
-        <button type="button" className="btn sel" onClick={() => onEquip(shield)}>
+      {unlock && (
+        <button type="button" className="btn sel" onClick={() => onEquip(unlock)}>
           Ota käyttöön
         </button>
       )}

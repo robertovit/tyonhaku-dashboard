@@ -85,8 +85,8 @@ pixel icons from `Pixels.tsx`, then "+ Lisää hakemus"), which becomes a bottom
 The open view is in the URL hash (`#varusteet`; `useView` pushes history entries and follows back/forward).
 Tänään: character with the worn shield and three meter lines, "Tallennetut paikat" (`deadlineLabel`,
 `lib/labels.ts`) and "Seurattavat haut" (three first; a row opens "Muistuta 2 viikon päästä", "Kirjaa hylkäys",
-"Muokkaa"). Varusteet (`Gear.tsx`): shields with "Ota käyttöön" beside the preview, application milestones, other
-badges, "Aiemmat merkit". Tilastot has the weekly chart; Hakuloki (`LogTable.tsx`) has the CSV download and shows
+"Muokkaa"). Varusteet (`Gear.tsx`): two gear slots that work the same way (`Armory`: preview with "Ota käyttöön" beside it,
+radio cards), the shields and the post series, then other badges and "Aiemmat merkit". Tilastot has the weekly chart; Hakuloki (`LogTable.tsx`) has the CSV download and shows
 cards on a phone and a table on wider screens (same rows, order and filter).
 Short dialogs (`QuickDialogs.tsx`): "Päivitä tila" (new status + the day the news came, saved through
 `recordStatus` like the edit dialog) and "Merkitse haetuksi" (send date only). App opens them as promises, so the
@@ -94,8 +94,9 @@ list that opened one can move focus after a save. Saves pass a label to `arm()`,
 "Merkitty haetuksi · +33 XP". The edit dialog keeps the extra fields under "Lisätiedot" (opened automatically for a
 stored application, a field with an error or one filled by the assistant). On a phone dialogs are full screen with
 a sticky save row; `main.tsx` keeps `--vvh` at the visible height above the keyboard.
-The avatar is a 16×16 pixel character (`Avatar.tsx`) that gains an item per level and can wear an earned shield;
-the app icons are drawn from it.
+The avatar is a 16×16 pixel character (`Avatar.tsx`) that gains an item per level and can wear an earned shield
+(left arm) and carry an earned post item (right hand, `Post.tsx`); the app icons are drawn from it. The level shows
+as "LVL 4", the next level's note as "Taso 5 avaa: …".
 
 ## Data model
 
@@ -127,10 +128,17 @@ known values of the fixture (380 XP, level 3, 10/14 badges, 3 follow-ups); updat
 
 Shields (`lib/shields.ts`): 1, 5 and 10 rejections (`GameState.no`, each application once, a rejection after an
 interview too) open three shields that give no XP. There is no separate "closed without an answer" status yet, so a
-search closed by hand as "Ei valittu" counts as well. The worn shield is a per-browser choice (`hooks/useShield.ts`,
-localStorage `tyonhaku:shield:<mode>`); sprites in `components/Shield.tsx` are on the avatar's pixel grid. The
-Varusteet view shows the shields (preview, then one "Ota käyttöön"), the effort badges (`COLLECTION_BADGES`: the
-application milestones `APP_MILESTONES` as their own row with `milestoneProgress`, then `EFFORT_BADGES`; the shields replace "Sinnikäs") and earned
+search closed by hand as "Ei valittu" counts as well. The worn shield and post item are per-browser choices (`hooks/useGear.ts`,
+localStorage `tyonhaku:shield:<mode>` and `tyonhaku:post:<mode>`, storing the item's stable id, never its name);
+sprites in `components/Shield.tsx` and `components/Post.tsx` are on the avatar's pixel grid.
+
+Post series (`lib/post.ts`): the application milestones 1, 10, 25, 50, 100 and 200 (`APP_MILESTONES`, counted from
+`GameState.total`, so each sent application counts once whatever its status later) open Kirjekuori, Lähettilaukku,
+Postileimasin, Puolisataa-postilaatikko, Postikärry and Tavarafillari. Cosmetic, no XP. Derived, so old data has its
+items at once; a save that crosses a milestone shows the unlock toast with "Ota käyttöön" (`Celebration.post`,
+the cart's own title in `unlockedTitle`). The
+Varusteet view shows the shields, the post series (the application milestones `APP_MILESTONES` with
+`milestoneProgress`), the other effort badges (`EFFORT_BADGES`; the shields replace "Sinnikäs") and earned
 outcome badges under "Aiemmat merkit" (`ARCHIVED_BADGES`); all stay in `GameState.badges`. `celebrationWatch`
 compares only confirmed states (no write pending) after `arm()`, so a failed save and the first load celebrate
 nothing; a rejection never gets confetti, and a newly opened shield comes with "Ota käyttöön" in the toast.

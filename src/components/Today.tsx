@@ -3,6 +3,7 @@ import { fmtDate } from "../lib/dates";
 import { avatarItem, statusGain, type GameState } from "../lib/game";
 import { deadlineLabel, URGENT_DAYS, waitLabel } from "../lib/labels";
 import type { Application } from "../lib/model";
+import type { PostItem } from "../lib/post";
 import type { Shield } from "../lib/shields";
 import type { Followup } from "../lib/stats";
 import { Avatar } from "./Avatar";
@@ -20,6 +21,7 @@ export function PlayerPanel({
   canWrite,
   onGoal,
   shield,
+  post,
   onShields,
 }: {
   game: GameState;
@@ -27,6 +29,7 @@ export function PlayerPanel({
   canWrite: boolean;
   onGoal: (n: number) => Promise<void>;
   shield: Shield | undefined;
+  post: PostItem | undefined;
   onShields: () => void;
 }) {
   const L = game.level;
@@ -46,21 +49,30 @@ export function PlayerPanel({
         className={`av-box${bump ? " up" : ""}`}
         key={bump}
         role="img"
-        aria-label={`Hahmo tasolla ${L.n}: ${avatarItem(L.n)}${shield ? `, ${shield.name.toLowerCase()}` : ""}`}
+        aria-label={`Hahmo tasolla ${L.n}: ${[avatarItem(L.n), shield?.name, post?.name]
+          .filter(Boolean)
+          .join(", ")
+          .toLowerCase()}`}
       >
-        <Avatar level={L.n} shield={shield?.id} />
+        <Avatar level={L.n} shield={shield?.id} post={post?.id} />
       </div>
       <div className="player-main">
         <div className="player-title">
           <h2 id="playerH">Hakija</h2>
-          <span className="lvl">Tl {L.n}</span>
+          <span className="lvl">LVL {L.n}</span>
           <span className="sub">
             {L.name} · {game.xp} XP
           </span>
         </div>
         <p className="gear-line">
-          <span className="k">KILPI</span>
-          <span className={shield ? "gear-name" : "sub"}>{shield ? shield.name : "Ei käytössä"}</span>
+          <span className="gear-slot">
+            <span className="k">KILPI</span>
+            <span className={shield ? "gear-name" : "sub"}>{shield ? shield.name : "Ei käytössä"}</span>
+          </span>
+          <span className="gear-slot">
+            <span className="k">POSTI</span>
+            <span className={post ? "gear-name" : "sub"}>{post ? post.name : "Ei käytössä"}</span>
+          </span>
           <a
             href="#varusteet"
             className="gear-link"
@@ -69,7 +81,7 @@ export function PlayerPanel({
               onShields();
             }}
           >
-            {shield ? "Vaihda kilpeä" : "Katso kilvet"}
+            {shield || post ? "Vaihda varusteita" : "Katso varusteet"}
           </a>
         </p>
         <div className="stats">
@@ -88,6 +100,9 @@ export function PlayerPanel({
             >
               <i style={{ width: `${pct}%` }} />
             </div>
+            <span className="sub stat-note">
+              {L.n < 8 ? `Taso ${L.n + 1} avaa: ${avatarItem(L.n + 1)}` : `Taso ${L.n + 1}: Työnhaun legenda`}
+            </span>
           </div>
           <div className="stat">
             <span className="stat-text">

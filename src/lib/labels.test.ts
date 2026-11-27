@@ -31,7 +31,9 @@ describe("application milestone progress", () => {
     expect(milestoneProgress(0)).toMatchObject({ milestone: { id: "first", required: 1 }, done: false });
     expect(milestoneProgress(23)).toMatchObject({ milestone: { id: "quarter", required: 25 }, total: 23, done: false });
     expect(milestoneProgress(25)).toMatchObject({ milestone: { id: "fifty", name: "Puolisataa" }, done: false });
-    expect(milestoneProgress(61)).toMatchObject({ milestone: { id: "fifty" }, total: 61, done: true });
+    expect(milestoneProgress(61)).toMatchObject({ milestone: { id: "hundred", required: 100 }, done: false });
+    expect(milestoneProgress(150)).toMatchObject({ milestone: { id: "twohundred", required: 200 }, done: false });
+    expect(milestoneProgress(205)).toMatchObject({ milestone: { id: "twohundred" }, total: 205, done: true });
   });
 });
 

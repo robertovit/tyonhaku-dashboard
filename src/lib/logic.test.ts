@@ -117,9 +117,13 @@ describe("game", () => {
     const after = gameState([...apps, ...extra], 5, today);
     const c = celebrationFor(g, after)!;
     expect(after.level.n).toBe(4);
-    expect(c.title).toBe("+70 XP");
+    // the 25th application opens the post stamp: its title replaces "Uusi saavutus: 25 hakemusta"
+    expect(c.title).toBe("Postileimasin avattu");
+    expect(c.post?.id).toBe("postmark");
     expect(c.newBadges).toEqual(["quarter"]);
+    expect(c.text).toContain("+70 XP");
     expect(c.text).toContain("Viikkotavoite täynnä!");
+    expect(c.text).not.toContain("Uusi saavutus");
     expect(c.confetti).toBe(160);
   });
   it("splits XP per application so the parts add up to the total", () => {

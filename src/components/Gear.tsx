@@ -1,88 +1,174 @@
-import { useState } from "react";
-import {
-  APP_MILESTONES,
-  ARCHIVED_BADGES,
-  avatarItem,
-  EFFORT_BADGES,
-  milestoneProgress,
-  type GameState,
-} from "../lib/game";
+import { useState, type ReactNode } from "react";
+import { ARCHIVED_BADGES, avatarItem, EFFORT_BADGES, milestoneProgress, type GameState } from "../lib/game";
+import { POST_ITEMS, sentText, type PostItem, type PostItemId } from "../lib/post";
 import { rejectionsText, SHIELDS, type Shield, type ShieldId } from "../lib/shields";
 import { Avatar } from "./Avatar";
-import { MilestoneItem, PixelIcon } from "./Pixels";
+import { PixelIcon } from "./Pixels";
+import { PostIcon } from "./Post";
 import { ShieldIcon } from "./Shield";
 
 const earnedText = (week: number | undefined) => (week ? `Ansaittu vko ${week}` : "Ansaittu");
 
 /**
- * Varusteet: the character preview with the one shared "Ota käyttöön" beside it, and the three shields (pick one
- * to preview; a locked one can be previewed too and shows how it is earned), then the application milestones, the other effort badges and, folded away, the earlier badges.
+ * Varusteet: two gear slots that work the same way, the shields (from recorded rejections) and the post series
+ * (from sent applications). Pick an item to preview it on the character, confirm with "Ota käyttöön" beside the
+ * preview; a locked one can be previewed too and says how it is earned. Then the other effort badges and, folded
+ * away, the earlier badges.
  */
 export function GearView({
   game,
   fresh,
   freshShield,
+  freshPost,
   weeks,
   shield,
-  onEquip,
+  post,
+  onShield,
+  onPost,
 }: {
   game: GameState;
   fresh: string[];
   freshShield: ShieldId | undefined;
+  freshPost: PostItemId | undefined;
   weeks: Record<string, number>;
   shield: Shield | undefined;
-  onEquip: (id: ShieldId | null) => void;
+  post: PostItem | undefined;
+  onShield: (id: ShieldId | null) => void;
+  onPost: (id: PostItemId | null) => void;
 }) {
+  const L = game.level.n;
+  const { milestone, total, done } = milestoneProgress(game.total);
   return (
     <>
-      <ShieldsPanel game={game} freshShield={freshShield} shield={shield} onEquip={onEquip} />
-      <MilestonesPanel game={game} weeks={weeks} fresh={fresh} />
+      <Armory
+        slot="shield"
+        title="Kilvet"
+        sub={`${rejectionsText(game.no)} kirjattu · kilvet eivät anna XP:tä`}
+        items={SHIELDS}
+        count={game.no}
+        worn={shield}
+        fresh={freshShield}
+        onEquip={onShield}
+        art={(id) => <ShieldIcon id={id} />}
+        avatar={(id) => <Avatar level={L} shield={id} post={post?.id} />}
+        noun="kilpeä"
+        need={(n) => `${n} kirjattua hylkäystä`}
+        earnedAs={(it) => `Ansaittu · ${rejectionsText(it.required)}`}
+        opensWhen={(it) => `${it.required} hylkäystä on kirjattu`}
+        level={L}
+      />
+      <Armory
+        slot="post"
+        title="Postisarja"
+        sub={
+          done
+            ? `Kaikki ansaittu · ${sentText(total)} lähetetty`
+            : `Seuraavaksi ${POST_ITEMS.find((p) => p.milestone === milestone.id)!.name} · ${total} / ${sentText(milestone.required)}`
+        }
+        items={POST_ITEMS}
+        count={game.total}
+        worn={post}
+        fresh={freshPost}
+        onEquip={onPost}
+        art={(id) => <PostIcon id={id} />}
+        avatar={(id) => <Avatar level={L} shield={shield?.id} post={id} />}
+        noun="postiesinettä"
+        need={(n) => sentText(n)}
+        earnedAs={(it) => earnedText(weeks[(it as PostItem).milestone])}
+        opensWhen={(it) => `${it.required} hakemusta on lähetetty`}
+        level={L}
+        meter={
+          !done && (
+            <div
+              className="meter ms-meter"
+              role="progressbar"
+              aria-label={`Seuraava postiesine: ${milestone.required} hakemusta`}
+              aria-valuemin={0}
+              aria-valuemax={milestone.required}
+              aria-valuenow={total}
+            >
+              <i style={{ width: `${Math.min(100, (total / milestone.required) * 100)}%` }} />
+            </div>
+          )
+        }
+      />
       <BadgesPanel game={game} weeks={weeks} fresh={fresh} />
     </>
   );
 }
 
-function ShieldsPanel({
-  game,
-  freshShield,
-  shield,
+type Item = { id: string; name: string; required: number };
+
+/**
+ * One gear slot: the character preview with "Ota käyttöön" / "Poista käytöstä" beside it, then the items as
+ * radio cards (the previewed one has the lime border; the worn one a check and "Käytössä"; a locked one a lock
+ * and how it is earned). The choice is stored by the item's id, never its name.
+ */
+function Armory<T extends Item>({
+  slot,
+  title,
+  sub,
+  items,
+  count,
+  worn,
+  fresh,
   onEquip,
+  art,
+  avatar,
+  noun,
+  need,
+  earnedAs,
+  opensWhen,
+  level,
+  meter,
 }: {
-  game: GameState;
-  freshShield: ShieldId | undefined;
-  shield: Shield | undefined;
-  onEquip: (id: ShieldId | null) => void;
+  slot: "shield" | "post";
+  title: string;
+  sub: string;
+  items: readonly T[];
+  count: number;
+  worn: T | undefined;
+  fresh: T["id"] | undefined;
+  onEquip: (id: T["id"] | null) => void;
+  art: (id: T["id"]) => ReactNode;
+  avatar: (id: T["id"]) => ReactNode;
+  /** "kilpeä", "postiesinettä" (partitive, for the hint) */
+  noun: string;
+  need: (n: number) => string;
+  earnedAs: (item: T) => string;
+  opensWhen: (item: T) => string;
+  level: number;
+  meter?: ReactNode;
 }) {
-  const earned = SHIELDS.filter((s) => game.no >= s.required);
-  const [previewId, setPreviewId] = useState<ShieldId>(
-    () => freshShield ?? shield?.id ?? earned.at(-1)?.id ?? SHIELDS[0].id,
-  );
+  const earned = items.filter((s) => count >= s.required);
+  const [previewId, setPreviewId] = useState<T["id"]>(() => fresh ?? worn?.id ?? earned.at(-1)?.id ?? items[0].id);
   const [said, setSaid] = useState("");
-  const preview = SHIELDS.find((s) => s.id === previewId)!;
-  const open = game.no >= preview.required;
-  const worn = shield?.id === preview.id;
-  const L = game.level;
+  const preview = items.find((s) => s.id === previewId)!;
+  const open = count >= preview.required;
+  const isWorn = worn?.id === preview.id;
+  const h = `${slot}H`;
   const hint = !open
-    ? `${preview.name} on lukittu. Se avautuu, kun ${preview.required} hylkäystä on kirjattu (${game.no} / ${preview.required}).`
-    : worn
+    ? `${preview.name} on lukittu. Se avautuu, kun ${opensWhen(preview)} (${count} / ${preview.required}).`
+    : isWorn
       ? `${preview.name} on jo käytössä.`
-      : `Ota käyttöön, niin hahmo kantaa kilpeä myös Tänään-näkymässä.`;
+      : `Ota käyttöön, niin hahmo kantaa ${noun} myös Tänään-näkymässä.`;
   return (
-    <section className="frame" aria-labelledby="shieldsH">
+    <section className="frame" aria-labelledby={h}>
       <div className="ph">
-        <h2 id="shieldsH" tabIndex={-1}>
-          Kilvet
+        <h2 id={h} tabIndex={-1}>
+          {title}
         </h2>
-        <span className="sub">{rejectionsText(game.no)} kirjattu · kilvet eivät anna XP:tä</span>
+        <span className="sub">{sub}</span>
       </div>
+      {meter}
       <div className="armory">
         <div className="preview">
           <div
             className="av-box"
             role="img"
-            aria-label={`Esikatselu: hahmo tasolla ${L.n}, ${avatarItem(L.n)}, ${preview.name.toLowerCase()}`}
+            aria-label={`Esikatselu: hahmo tasolla ${level}, ${avatarItem(level)}, ${preview.name.toLowerCase()}`}
           >
-            <Avatar level={L.n} shield={preview.id} />
+            {avatar(preview.id)}
           </div>
           <div className="preview-side">
             <dl className="preview-text">
@@ -92,13 +178,13 @@ function ShieldsPanel({
                 {!open && <span className="sub"> (lukittu)</span>}
               </dd>
               <dt>KÄYTÖSSÄ</dt>
-              <dd className={shield ? undefined : "sub"}>{shield ? shield.name : "Ei kilpeä"}</dd>
+              <dd className={worn ? undefined : "sub"}>{worn ? worn.name : "Ei mitään"}</dd>
             </dl>
             <div className="armory-actions">
               <button
                 type="button"
                 className="btn primary"
-                disabled={!open || worn}
+                disabled={!open || isWorn}
                 onClick={() => {
                   onEquip(preview.id);
                   setSaid(`${preview.name} otettu käyttöön.`);
@@ -106,12 +192,12 @@ function ShieldsPanel({
               >
                 Ota käyttöön
               </button>
-              {shield && (
+              {worn && (
                 <button
                   type="button"
                   className="btn"
                   onClick={() => {
-                    setSaid(`${shield.name} poistettu käytöstä.`);
+                    setSaid(`${worn.name} poistettu käytöstä.`);
                     onEquip(null);
                   }}
                 >
@@ -125,19 +211,19 @@ function ShieldsPanel({
           </p>
         </div>
         <div className="armory-main">
-          <fieldset className="shield-cards">
-            <legend className="sr">Valitse esikatseltava kilpi</legend>
-            {SHIELDS.map((s) => {
-              const isOpen = game.no >= s.required;
-              const isWorn = shield?.id === s.id;
+          <fieldset className={`shield-cards ${slot}-cards`}>
+            <legend className="sr">Valitse esikatseltava: {title.toLowerCase()}</legend>
+            {items.map((s) => {
+              const itemOpen = count >= s.required;
+              const itemWorn = worn?.id === s.id;
               return (
                 <label
                   key={s.id}
-                  className={`shield-card${isOpen ? "" : " locked"}${isWorn ? " worn" : ""}${s.id === freshShield ? " new" : ""}`}
+                  className={`shield-card${itemOpen ? "" : " locked"}${itemWorn ? " worn" : ""}${s.id === fresh ? " new" : ""}`}
                 >
                   <input
                     type="radio"
-                    name="shield-preview"
+                    name={`${slot}-preview`}
                     value={s.id}
                     checked={s.id === previewId}
                     onChange={() => {
@@ -145,26 +231,27 @@ function ShieldsPanel({
                       setSaid("");
                     }}
                   />
-                  <span className="shield-art">
-                    <ShieldIcon id={s.id} />
+                  <span className={slot === "shield" ? "shield-art" : "shield-art ms-art"}>
+                    {art(s.id)}
+                    {slot === "post" && <span className="ms-goal pix">{s.required}</span>}
                   </span>
                   <span className="name">{s.name}</span>
                   <span className="state">
-                    {isWorn ? (
+                    {itemWorn ? (
                       <>
                         <PixelIcon name="check" /> Käytössä
                       </>
-                    ) : isOpen ? (
-                      `Ansaittu · ${rejectionsText(s.required)}`
+                    ) : itemOpen ? (
+                      earnedAs(s)
                     ) : (
                       <>
-                        <PixelIcon name="lock" /> {s.required} kirjattua hylkäystä
+                        <PixelIcon name="lock" /> {need(s.required)}
                       </>
                     )}
                   </span>
-                  {!isOpen && (
+                  {!itemOpen && (
                     <span className="sub progress">
-                      {game.no} / {s.required}
+                      {Math.min(count, s.required)} / {s.required}
                     </span>
                   )}
                   {s.id === previewId && <span className="picked">Esikatselussa</span>}
@@ -174,59 +261,6 @@ function ShieldsPanel({
           </fieldset>
         </div>
       </div>
-    </section>
-  );
-}
-
-function MilestonesPanel({ game, weeks, fresh }: { game: GameState; weeks: Record<string, number>; fresh: string[] }) {
-  const { milestone, total, done } = milestoneProgress(game.total);
-  return (
-    <section className="frame" aria-labelledby="milestonesH">
-      <div className="ph">
-        <h2 id="milestonesH">Hakemusetapit</h2>
-        <span className="pix sub ms-progress">
-          {done
-            ? `${milestone.name} saavutettu · ${total} hakemusta`
-            : `${milestone.name === `${milestone.required} hakemusta` ? "Seuraavaksi" : milestone.name} · ${total} / ${milestone.required} hakemusta`}
-        </span>
-      </div>
-      {!done && (
-        <div
-          className="meter ms-meter"
-          role="progressbar"
-          aria-label={`Seuraava etappi: ${milestone.name}`}
-          aria-valuemin={0}
-          aria-valuemax={milestone.required}
-          aria-valuenow={total}
-        >
-          <i style={{ width: `${Math.min(100, (total / milestone.required) * 100)}%` }} />
-        </div>
-      )}
-      <ul className="milestones">
-        {APP_MILESTONES.map((m) => {
-          const on = game.badges.includes(m.id);
-          return (
-            <li key={m.id} className={`${on ? "on" : "locked"}${fresh.includes(m.id) ? " new" : ""}`}>
-              <span className="ms-art">
-                <MilestoneItem id={m.id} />
-                <span className="ms-goal pix">{m.required}</span>
-              </span>
-              <span className="name">{m.name}</span>
-              <span className="state">
-                {on ? (
-                  <>
-                    <PixelIcon name="check" /> {earnedText(weeks[m.id])}
-                  </>
-                ) : (
-                  <>
-                    <PixelIcon name="lock" /> Lukittu · {Math.min(total, m.required)} / {m.required}
-                  </>
-                )}
-              </span>
-            </li>
-          );
-        })}
-      </ul>
     </section>
   );
 }
