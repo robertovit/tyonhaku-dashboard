@@ -92,7 +92,7 @@ describe("the collection", () => {
     const ids = COLLECTION_BADGES.map((b) => b.id);
     expect(ids).toEqual(expect.arrayContaining(["first", "ten", "quarter", "fifty"]));
     expect(ids).not.toContain("persist");
-    expect(ARCHIVED_BADGES.map((b) => b.id)).toEqual(["interview", "top", "offer"]);
+    expect(ARCHIVED_BADGES.map((b) => b.id)).toEqual(["burst", "bigwater", "interview", "top", "offer"]);
   });
   it("shows an interview as XP, not as a new badge", () => {
     const c = celebrationFor(g([sent(0)]), g([setStatus(sent(0), "int")]));

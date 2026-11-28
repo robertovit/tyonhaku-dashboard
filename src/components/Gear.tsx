@@ -1,5 +1,14 @@
 import { useState, type ReactNode } from "react";
-import { ARCHIVED_BADGES, avatarItem, EFFORT_BADGES, milestoneProgress, type GameState } from "../lib/game";
+import { weekKey, weekLabel } from "../lib/dates";
+import {
+  ARCHIVED_BADGES,
+  avatarItem,
+  badgeProgress,
+  EFFORT_BADGES,
+  milestoneProgress,
+  type Badge,
+  type GameState,
+} from "../lib/game";
 import { POST_ITEMS, sentText, type PostItem, type PostItemId } from "../lib/post";
 import { rejectionsText, SHIELDS, type Shield, type ShieldId } from "../lib/shields";
 import { Avatar } from "./Avatar";
@@ -7,7 +16,9 @@ import { PixelIcon } from "./Pixels";
 import { PostIcon } from "./Post";
 import { ShieldIcon } from "./Shield";
 
-const earnedText = (week: number | undefined) => (week ? `Ansaittu vko ${week}` : "Ansaittu");
+/** "Ansaittu vko 37", "Ansaittu vko 53/2026" (another year) or "Ansaittu tällä viikolla". */
+const earnedText = (week: string | undefined, today: string) =>
+  !week ? "Ansaittu" : week === weekKey(today) ? "Ansaittu tällä viikolla" : `Ansaittu ${weekLabel(week, today)}`;
 
 /**
  * Varusteet: two gear slots that work the same way, the shields (from recorded rejections) and the post series
@@ -21,6 +32,7 @@ export function GearView({
   freshShield,
   freshPost,
   weeks,
+  today,
   shield,
   post,
   onShield,
@@ -30,7 +42,9 @@ export function GearView({
   fresh: string[];
   freshShield: ShieldId | undefined;
   freshPost: PostItemId | undefined;
-  weeks: Record<string, number>;
+  /** The week (its Monday) each earned badge was reached, from badgeWeeks(). */
+  weeks: Record<string, string>;
+  today: string;
   shield: Shield | undefined;
   post: PostItem | undefined;
   onShield: (id: ShieldId | null) => void;
@@ -74,7 +88,7 @@ export function GearView({
         avatar={(id) => <Avatar level={L} shield={shield?.id} post={id} />}
         noun="postiesinettä"
         need={(n) => sentText(n)}
-        earnedAs={(it) => earnedText(weeks[(it as PostItem).milestone])}
+        earnedAs={(it) => earnedText(weeks[(it as PostItem).milestone], today)}
         opensWhen={(it) => `${it.required} hakemusta on lähetetty`}
         level={L}
         meter={
@@ -92,7 +106,7 @@ export function GearView({
           )
         }
       />
-      <BadgesPanel game={game} weeks={weeks} fresh={fresh} />
+      <BadgesPanel game={game} weeks={weeks} today={today} fresh={fresh} />
     </>
   );
 }
@@ -265,15 +279,30 @@ function Armory<T extends Item>({
   );
 }
 
-/** The other effort badges (pick one to see how it is earned), then the earlier badges folded away. */
-function BadgesPanel({ game, weeks, fresh }: { game: GameState; weeks: Record<string, number>; fresh: string[] }) {
+/**
+ * The other effort badges, then the earlier badges folded away. Pick one to see what it asks for, how far along it
+ * is (the same count that unlocks it, badgeProgress) and the next step. Opens on a badge just earned, else the first
+ * locked one with progress to show, else the latest earned.
+ */
+function BadgesPanel({
+  game,
+  weeks,
+  today,
+  fresh,
+}: {
+  game: GameState;
+  weeks: Record<string, string>;
+  today: string;
+  fresh: string[];
+}) {
   const earned = EFFORT_BADGES.filter((b) => game.badges.includes(b.id));
   const archived = ARCHIVED_BADGES.filter((b) => game.badges.includes(b.id));
-  const latest = [...earned].sort((a, b) => (weeks[b.id] ?? 0) - (weeks[a.id] ?? 0))[0]?.id;
+  const latest = [...earned].sort((a, b) => (weeks[b.id] ?? "").localeCompare(weeks[a.id] ?? ""))[0]?.id;
+  const nextUp = EFFORT_BADGES.find((b) => b.unit && !game.badges.includes(b.id))?.id;
   const [picked, setPicked] = useState<string | null>(null);
-  const selId = picked ?? fresh.find((id) => EFFORT_BADGES.some((b) => b.id === id)) ?? latest ?? EFFORT_BADGES[0].id;
+  const selId =
+    picked ?? fresh.find((id) => EFFORT_BADGES.some((b) => b.id === id)) ?? nextUp ?? latest ?? EFFORT_BADGES[0].id;
   const sel = EFFORT_BADGES.find((b) => b.id === selId) ?? EFFORT_BADGES[0];
-  const selOn = game.badges.includes(sel.id);
   return (
     <section className="frame" aria-labelledby="badgesH">
       <div className="ph">
@@ -284,37 +313,29 @@ function BadgesPanel({ game, weeks, fresh }: { game: GameState; weeks: Record<st
       </div>
       <div className="items" role="group" aria-label="Merkit">
         {EFFORT_BADGES.map((b) => {
-          const on = game.badges.includes(b.id);
+          const p = badgeProgress(b, game);
+          const showProg = !p.done && b.unit;
           return (
             <button
               type="button"
               key={b.id}
-              className={`item${on ? " on" : ""}${fresh.includes(b.id) ? " new" : ""}`}
+              className={`item${p.done ? " on" : ""}${fresh.includes(b.id) ? " new" : ""}`}
               aria-pressed={b.id === sel.id}
-              aria-label={`${b.name}, ${on ? "ansaittu" : "lukittu"}`}
+              aria-label={`${b.name}, ${p.done ? "ansaittu" : `lukittu${showProg ? `, ${p.have} / ${p.need}` : ""}`}`}
               title={b.name}
               onClick={() => setPicked(b.id)}
             >
-              {b.icon}
+              <span aria-hidden="true">{b.icon}</span>
+              {showProg && (
+                <small className="prog" aria-hidden="true">
+                  {p.have}/{p.need}
+                </small>
+              )}
             </button>
           );
         })}
       </div>
-      <div className="item-detail" aria-live="polite">
-        <span className={`name${selOn ? " on" : ""}`}>{sel.name}</span>
-        <span>{sel.how}.</span>
-        <span className={`when ${selOn ? "accent" : "sub"}`}>
-          {selOn ? (
-            <>
-              <PixelIcon name="check" /> {earnedText(weeks[sel.id])}
-            </>
-          ) : (
-            <>
-              <PixelIcon name="lock" /> Lukittu
-            </>
-          )}
-        </span>
-      </div>
+      <BadgeDetail badge={sel} game={game} week={weeks[sel.id]} today={today} isNew={fresh.includes(sel.id)} />
       <details className="earlier">
         <summary>
           Aiemmat merkit <span className="sub">({archived.length})</span>
@@ -327,15 +348,76 @@ function BadgesPanel({ game, weeks, fresh }: { game: GameState; weeks: Record<st
                   {b.icon}
                 </span>
                 <span className="name">{b.name}</span>
-                <span className="sub">{earnedText(weeks[b.id])}</span>
+                <span className="sub">{earnedText(weeks[b.id], today)}</span>
               </li>
             ))}
           </ul>
         ) : (
           <p className="sub">Ei vielä aiempia merkkejä.</p>
         )}
-        <p className="sub">Uudet haastattelut ja tarjoukset näkyvät XP:ssä ja hakemuksen historiassa.</p>
+        <p className="sub">
+          Näitä merkkejä ei enää kerätä. Ansaitut säilyvät täällä. Uudet haastattelut ja tarjoukset näkyvät XP:ssä ja
+          hakemuksen historiassa.
+        </p>
       </details>
     </section>
+  );
+}
+
+/** The picked badge: name and state (icon and text, never color alone), the condition, progress and next step. */
+function BadgeDetail({
+  badge: b,
+  game,
+  week,
+  today,
+  isNew,
+}: {
+  badge: Badge;
+  game: GameState;
+  week: string | undefined;
+  today: string;
+  isNew: boolean;
+}) {
+  const p = badgeProgress(b, game);
+  const note = b.note?.(game, today);
+  return (
+    <div className="item-detail" aria-live="polite">
+      <span className={`name${p.done ? " on" : ""}`}>
+        {isNew && <span className="new-chip pix">UUSI</span>}
+        {b.name}
+      </span>
+      <span className={`when ${p.done ? "accent" : "sub"}`}>
+        {p.done ? (
+          <>
+            <PixelIcon name="check" /> {earnedText(week, today)}
+          </>
+        ) : (
+          <>
+            <PixelIcon name="lock" /> Lukittu
+          </>
+        )}
+      </span>
+      <span>{b.how}.</span>
+      {b.unit && (
+        <>
+          {!p.done && (
+            <div
+              className="meter badge-meter"
+              role="progressbar"
+              aria-label={`${b.name}: eteneminen`}
+              aria-valuemin={0}
+              aria-valuemax={p.need}
+              aria-valuenow={p.have}
+              aria-valuetext={`${p.have} / ${b.unit(p.need)}`}
+            >
+              <i style={{ width: `${(p.have / p.need) * 100}%` }} />
+            </div>
+          )}
+          <span className="pix badge-count">{p.done ? b.unit(p.count) : `${p.have} / ${b.unit(p.need)}`}</span>
+        </>
+      )}
+      {!p.done && b.next && <span className="badge-next">{b.next(p.left)}</span>}
+      {note && <span className="sub">{note}</span>}
+    </div>
   );
 }

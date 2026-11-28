@@ -1,7 +1,7 @@
 // Game layer: XP, levels, streaks and badges are all derived from the applications; nothing extra is stored.
 // Outcome XP counts each stage an application has reached (lib/history.ts), so a rejection after an interview
 // keeps the interview, and a stage recorded twice still counts once.
-import { isoWeek } from "./dates";
+import { weekKey, weekLabel } from "./dates";
 import { asOf, hadInterview, hadOffer, hadRejection, recordStatus } from "./history";
 import { weeklySeries } from "./stats";
 import type { Application, StageEvent, Status } from "./model";
@@ -99,7 +99,12 @@ export function weekStats(apps: Application[], goal: number, today: string): Wee
 
 export interface GameState {
   total: number;
+  /** Sent applications with a CV version recorded ("Räätälöity CV"). */
   tailored: number;
+  /** Distinct Monday–Sunday weeks with at least one sent application (any goal, pauses allowed). */
+  activeWeeks: number;
+  /** Monday of the latest such week, "" with no applications. */
+  lastWeek: string;
   letters: number;
   no: number;
   interviews: number;
@@ -114,13 +119,40 @@ export interface GameState {
   badges: string[];
 }
 
+export type BaseState = Omit<GameState, "badges" | "xp" | "level">;
+/**
+ * A badge is earned when `count` reaches `required`. The same count is the progress shown in Varusteet, so what the
+ * panel says and what unlocks can never disagree.
+ */
 export interface Badge {
   id: string;
   icon: string;
   name: string;
   how: string;
-  earned: (g: Omit<GameState, "badges" | "xp" | "level">) => boolean;
+  count: (g: BaseState) => number;
+  required: number;
+  /** Shown as progress ("3 / 5 hakemusta, joissa on CV-versio"); left out where a running count would mislead. */
+  unit?: (n: number) => string;
+  /** The next step while locked, given how many are still missing. */
+  next?: (left: number) => string;
+  /** An extra line for the details, e.g. the latest week that counted. */
+  note?: (g: BaseState, today: string) => string;
 }
+export const isEarned = (b: Badge, g: BaseState) => b.count(g) >= b.required;
+/** How far along a badge is: `have` is capped at `need`; `count` is the full running count. */
+export function badgeProgress(b: Badge, g: BaseState) {
+  const count = b.count(g);
+  return {
+    count,
+    have: Math.min(count, b.required),
+    need: b.required,
+    left: Math.max(0, b.required - count),
+    done: count >= b.required,
+  };
+}
+const n1 = (n: number, one: string, many: string) => `${n} ${n === 1 ? one : many}`;
+/** "1 hakuviikko" / "3 hakuviikkoa" */
+export const weeksText = (n: number) => n1(n, "hakuviikko", "hakuviikkoa");
 /**
  * Application count milestones (sent applications, each once). Each opens a post item (lib/post.ts), shown in
  * Varusteet as the post series.
@@ -136,70 +168,125 @@ export const APP_MILESTONES = [
 export type Milestone = (typeof APP_MILESTONES)[number];
 
 export const BADGES: Badge[] = [
-  ...APP_MILESTONES.map((m) => ({
+  ...APP_MILESTONES.map((m): Badge => ({
     id: m.id,
     icon: String(m.required),
     name: m.name,
     how: m.how,
-    earned: (g: Omit<GameState, "badges" | "xp" | "level">) => g.total >= m.required,
+    count: (g) => g.total,
+    required: m.required,
   })),
   {
-    id: "burst",
-    icon: "×10",
-    name: "Kymmenen yhdessä päivässä",
-    how: "Lähetä 10 hakemusta samana päivänä",
-    earned: (g) => g.maxDay >= 10,
+    id: "tailor",
+    icon: "CV",
+    name: "Räätälöijä",
+    how: "Kirjaa CV-versio viiteen lähetettyyn hakemukseen",
+    // what is measured: sent applications with the CV version field filled in (the same as the +5 XP part)
+    count: (g) => g.tailored,
+    required: 5,
+    unit: (n) => n1(n, "hakemus, jossa on CV-versio", "hakemusta, joissa on CV-versio"),
+    next: (left) =>
+      `Vielä ${left}. Lisää räätälöidyn CV:n nimi hakemukseen kohtaan Lisätiedot → CV-versio. Tallennettuun paikkaan kirjattu versio lasketaan, kun merkitset paikan haetuksi.`,
   },
-  { id: "week", icon: "✓", name: "Tavoite täynnä", how: "Täytä viikkotavoite kerran", earned: (g) => g.weeks.met >= 1 },
+  {
+    id: "pace",
+    icon: "4vk",
+    name: "Oma tahti",
+    how: "Lähetä vähintään yksi hakemus neljällä eri viikolla. Viikkojen ei tarvitse olla peräkkäin",
+    count: (g) => g.activeWeeks,
+    required: 4,
+    unit: weeksText,
+    next: (left) => `Vielä ${weeksText(left)}. Yksikin hakemus viikossa riittää, eikä tauko nollaa kertynyttä.`,
+    note: (g, today) =>
+      !g.lastWeek
+        ? ""
+        : g.lastWeek === weekKey(today)
+          ? "Viimeisin hakuviikko on tämä viikko."
+          : `Viimeisin hakuviikko ${weekLabel(g.lastWeek, today)}.`,
+  },
+  {
+    id: "week",
+    icon: "✓",
+    name: "Tavoite täynnä",
+    how: "Täytä viikkotavoite kerran",
+    count: (g) => g.weeks.met,
+    required: 1,
+  },
   {
     id: "streak3",
     icon: "3vk",
     name: "Kolmen viikon putki",
     how: "Täytä viikkotavoite 3 viikkoa peräkkäin",
-    earned: (g) => g.weeks.best >= 3,
+    count: (g) => g.weeks.best,
+    required: 3,
+    unit: (n) => n1(n, "viikko putkeen", "viikkoa putkeen"),
+    next: (left) =>
+      `Vielä ${left} ${left === 1 ? "viikko" : "viikkoa"} putkeen. Putki lasketaan viikoista, joilla tavoite täyttyy.`,
   },
-  { id: "variety", icon: "10+", name: "Laaja verkko", how: "Hae 10 eri työnantajalle", earned: (g) => g.orgs >= 10 },
   {
-    id: "tailor",
-    icon: "CV",
-    name: "Räätälöijä",
-    how: "Räätälöi CV viiteen hakemukseen",
-    earned: (g) => g.tailored >= 5,
+    id: "variety",
+    icon: "10+",
+    name: "Laaja verkko",
+    how: "Hae 10 eri työnantajalle",
+    count: (g) => g.orgs,
+    required: 10,
+    unit: (n) => n1(n, "eri työnantaja", "eri työnantajaa"),
+    next: (left) => `Vielä ${left} uutta työnantajaa.`,
+  },
+  {
+    id: "burst",
+    icon: "×10",
+    name: "Kymmenen yhdessä päivässä",
+    how: "Lähetä 10 hakemusta samana päivänä",
+    count: (g) => g.maxDay,
+    required: 10,
   },
   {
     id: "bigwater",
     icon: "500",
     name: "Isoja vesiä",
     how: "Hae paikkaa, jossa on yli 500 hakijaa",
-    earned: (g) => g.maxN >= 500,
+    count: (g) => g.maxN,
+    required: 500,
   },
   {
     id: "persist",
     icon: "∞",
     name: "Sinnikäs",
     how: "Käsittele 10 ei-valintaa ja jatka hakemista",
-    earned: (g) => g.no >= 10,
+    count: (g) => g.no,
+    required: 10,
   },
   {
     id: "interview",
     icon: "H",
     name: "Ensimmäinen haastattelu",
     how: "Pääse haastatteluun",
-    earned: (g) => g.interviews >= 1,
+    count: (g) => g.interviews,
+    required: 1,
   },
-  { id: "top", icon: "#1", name: "Paras hakija", how: "Sijoitu hakijoista ensimmäiseksi", earned: (g) => g.top >= 1 },
-  { id: "offer", icon: "€", name: "Tarjous", how: "Saa työtarjous", earned: (g) => g.offers >= 1 },
+  {
+    id: "top",
+    icon: "#1",
+    name: "Paras hakija",
+    how: "Sijoitu hakijoista ensimmäiseksi",
+    count: (g) => g.top,
+    required: 1,
+  },
+  { id: "offer", icon: "€", name: "Tarjous", how: "Saa työtarjous", count: (g) => g.offers, required: 1 },
 ];
 
 /**
- * What Varusteet collects: effort badges. The shields (lib/shields.ts) take the place of "persist", and
- * outcome badges (interview, top, offer) are only shown under "Aiemmin ansaitut" once earned; a new interview or
- * offer shows as XP and in the application's history instead. All of them stay in GameState.badges.
+ * What Varusteet collects: effort badges, the preparation and steady pace first. The shields (lib/shields.ts) take
+ * the place of "persist". Badges that reward one day's volume or other applicants' numbers (burst, bigwater) and
+ * outcome badges (interview, top, offer) are only shown under "Aiemmat merkit" once earned, and opening one later is
+ * not announced; a new interview or offer shows as XP and in the application's history instead. All of them stay
+ * in GameState.badges.
  */
-const ARCHIVED = ["interview", "top", "offer"];
+const ARCHIVED = ["burst", "bigwater", "interview", "top", "offer"];
 export const COLLECTION_BADGES = BADGES.filter((b) => b.id !== "persist" && !ARCHIVED.includes(b.id));
 export const ARCHIVED_BADGES = BADGES.filter((b) => ARCHIVED.includes(b.id));
-/** The collection without the application count milestones (shown as their own row). */
+/** The collection without the application count milestones (shown as the post series). */
 export const EFFORT_BADGES = COLLECTION_BADGES.filter((b) => !APP_MILESTONES.some((m) => m.id === b.id));
 
 /**
@@ -227,6 +314,7 @@ export function gameState(apps: Application[], goal: number, today: string): Gam
     maxDay: Math.max(0, ...perDay.values()),
     orgs: new Set(apps.map((a) => a.org.trim().toLowerCase())).size,
     weeks: weekStats(apps, goal, today),
+    ...activity(apps),
   };
   const r = XP_RULES;
   const xp =
@@ -237,7 +325,13 @@ export function gameState(apps: Application[], goal: number, today: string): Gam
     base.interviews * r.interview +
     base.offers * r.offer +
     base.weeks.met * r.fullWeek;
-  return { ...base, xp, level: levelFor(xp), badges: BADGES.filter((b) => b.earned(base)).map((b) => b.id) };
+  return { ...base, xp, level: levelFor(xp), badges: BADGES.filter((b) => isEarned(b, base)).map((b) => b.id) };
+}
+
+/** Oma tahti: the weeks with a sent application, from the send dates alone (the weekly goal plays no part). */
+function activity(apps: Application[]) {
+  const weeks = [...new Set(apps.map((a) => weekKey(a.d)))].sort();
+  return { activeWeeks: weeks.length, lastWeek: weeks.at(-1) ?? "" };
 }
 
 export interface XpPart {
@@ -265,11 +359,12 @@ export const avgXpPerApp = (apps: Application[]) =>
   apps.length ? apps.reduce((s, a) => s + xpForApp(a), 0) / apps.length : XP_RULES.application;
 
 /**
- * ISO week in which each earned badge was first reached, found by replaying the applications day by day.
- * A dated stage counts from its own day; an undated one (older data) from the application's date.
+ * The week (its Monday, see weekKey) in which each earned badge was first reached, found by replaying the
+ * applications day by day. A dated stage counts from its own day; an undated one (older data) from the
+ * application's date. Shown with weekLabel().
  */
-export function badgeWeeks(apps: Application[], goal: number, today: string): Record<string, number> {
-  const out: Record<string, number> = {};
+export function badgeWeeks(apps: Application[], goal: number, today: string): Record<string, string> {
+  const out: Record<string, string> = {};
   const days = [...new Set(apps.flatMap((a) => [a.d, ...a.events.map((e) => e.d).filter((d) => d && d <= today)]))];
   for (const d of days.sort()) {
     const g = gameState(
@@ -277,9 +372,9 @@ export function badgeWeeks(apps: Application[], goal: number, today: string): Re
       goal,
       d,
     );
-    g.badges.forEach((id) => (out[id] ??= isoWeek(d)));
+    g.badges.forEach((id) => (out[id] ??= weekKey(d)));
   }
-  gameState(apps, goal, today).badges.forEach((id) => (out[id] ??= isoWeek(today)));
+  gameState(apps, goal, today).badges.forEach((id) => (out[id] ??= weekKey(today)));
   return out;
 }
 
@@ -302,8 +397,10 @@ export function celebrationFor(before: GameState, after: GameState, saved = ""):
   const gained = after.xp - before.xp;
   const shield = newlyUnlockedShield(before.no, after.no);
   const post = shield ? undefined : newlyUnlockedPost(before.total, after.total);
-  if (gained <= 0 && !shield && !post) return null;
   const newBadges = COLLECTION_BADGES.filter((b) => after.badges.includes(b.id) && !before.badges.includes(b.id));
+  if (gained <= 0 && !shield && !post && !newBadges.length) return null;
+  // A badge can open without XP (a send date corrected into another week): then the badge is the title.
+  const badgeOnly = gained <= 0 && !shield && !post ? newBadges[0] : undefined;
   const lines: string[] = [];
   let big = false;
   if (after.level.n > before.level.n) {
@@ -312,7 +409,7 @@ export function celebrationFor(before: GameState, after: GameState, saved = ""):
   }
   // the milestone behind a new post item is said by the item's own title
   newBadges.forEach((b) => {
-    if (b.id !== post?.milestone) lines.push(`Uusi saavutus: ${b.name}`);
+    if (b.id !== post?.milestone && b !== badgeOnly) lines.push(`Uusi saavutus: ${b.name}`);
     big = true;
   });
   if (after.weeks.met > before.weeks.met) {
@@ -329,8 +426,14 @@ export function celebrationFor(before: GameState, after: GameState, saved = ""):
   if (rejection && !big && !shield) lines.push("Ei-valinta käsitelty. Jokainen haku vie eteenpäin.");
   const xp = gained > 0 ? `+${gained} XP` : "";
   return {
-    title: shield ? `${shield.name} avattu` : post ? unlockedTitle(post) : [saved, xp].filter(Boolean).join(" · "),
-    text: (shield || post ? [saved, xp, ...lines] : lines).filter(Boolean).join(" · "),
+    title: shield
+      ? `${shield.name} avattu`
+      : post
+        ? unlockedTitle(post)
+        : badgeOnly
+          ? `Uusi merkki: ${badgeOnly.name}`
+          : [saved, xp].filter(Boolean).join(" · "),
+    text: (shield || post || badgeOnly ? [saved, xp, ...lines] : lines).filter(Boolean).join(" · "),
     confetti: rejection || !big ? 0 : interview || after.level.n > before.level.n ? 160 : 90,
     newBadges: newBadges.map((b) => b.id),
     shield,

@@ -104,7 +104,8 @@ describe("game", () => {
   it("derives XP, level and badges", () => {
     expect(g.xp).toBe(380);
     expect(g.level).toMatchObject({ n: 3, name: "Hakemuskone", from: 250, to: 450 });
-    expect(g.badges).toHaveLength(10);
+    expect(g.badges).toHaveLength(11);
+    expect(g.badges).toContain("pace"); // five weeks with applications, with pauses between
     expect(g.badges).not.toContain("quarter");
     expect(g.weeks).toMatchObject({ met: 2, best: 1, current: 0, thisWeek: 0 });
   });
@@ -136,8 +137,9 @@ describe("game", () => {
   it("dates every earned badge to the week it was reached", () => {
     const w = badgeWeeks(apps, 5, today);
     expect(Object.keys(w).sort()).toEqual([...g.badges].sort());
-    expect(w.first).toBe(28);
-    expect(w.burst).toBe(33);
+    expect(w.first).toBe("2026-07-06"); // week 28
+    expect(w.burst).toBe("2026-08-10"); // week 33
+    expect(w.pace).toBe("2026-08-31"); // week 36: the fourth week with an application, after a pause
   });
   it("gives no XP for a saved ad that is not applied yet", () => {
     expect(xpForApp({ cv: "CV", att: "CV, saatekirje", status: "todo" })).toBe(0);

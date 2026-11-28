@@ -66,4 +66,13 @@ describe("demoSeed", () => {
     expect(gameState(apps, 3, today).no).toBe(9);
     expect(followups(apps, today).due.length).toBeGreaterThanOrEqual(5);
   });
+
+  it("shows Räätälöijä at 3 / 5, and marking the saved place with a CV version applied takes it to 4", () => {
+    const today = "2027-03-17";
+    const all = demoSeed(today).map(([id, d]) => normalize(id, d, today));
+    const sent = all.filter((a) => a.status !== "todo");
+    expect(gameState(sent, 3, today).tailored).toBe(3);
+    const todo = all.find((a) => a.id === "demo-todo-1")!;
+    expect(gameState([...sent, { ...todo, status: "wait", d: today }], 3, today).tailored).toBe(4);
+  });
 });
