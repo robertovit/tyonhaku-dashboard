@@ -14,7 +14,7 @@ describe("dates", () => {
     expect(isoWeek("2026-08-15")).toBe(33);
     expect(isoWeek("2026-10-03")).toBe(40);
     expect(isoWeek("2027-01-01")).toBe(53);
-    expect(weekKey("2026-07-12")).toBe("2026-28");
+    expect(weekKey("2026-07-12")).toBe("2026-07-06"); // a Sunday: the key is its week's Monday
   });
   it("parses Finnish deadlines, rolling over the new year and rejecting impossible dates", () => {
     expect(parseFinDate("7.12.", "2026-11-24")).toBe("2026-12-07");
