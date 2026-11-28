@@ -45,7 +45,7 @@ export interface WeekBucket {
   isNow: boolean;
   orgs: string[];
 }
-/** One bucket per ISO week from the first application to the current week (or the last application). */
+/** One bucket per ISO week (keyed by its Monday) from the first application to the current week (or the last application). */
 export function weeklySeries(apps: Application[], today: string): WeekBucket[] {
   if (!apps.length) return [];
   const dates = apps.map((a) => a.d).sort();
@@ -56,22 +56,19 @@ export function weeklySeries(apps: Application[], today: string): WeekBucket[] {
     byWeek.set(k, [...(byWeek.get(k) ?? []), a]);
   });
   const out: WeekBucket[] = [];
+  const now = weekKey(today);
   let cum = 0;
-  for (let t = dates[0]; ; t = addDays(t, 7)) {
-    const k = weekKey(t > end ? end : t);
-    if (!out.length || out[out.length - 1].key !== k) {
-      const list = byWeek.get(k) ?? [];
-      cum += list.length;
-      out.push({
-        key: k,
-        week: isoWeek(t > end ? end : t),
-        count: list.length,
-        cumulative: cum,
-        isNow: k === weekKey(today),
-        orgs: [...new Set(list.map((a) => a.org))],
-      });
-    }
-    if (t >= end) break;
+  for (let k = weekKey(dates[0]), last = weekKey(end); k <= last; k = addDays(k, 7)) {
+    const list = byWeek.get(k) ?? [];
+    cum += list.length;
+    out.push({
+      key: k,
+      week: isoWeek(k),
+      count: list.length,
+      cumulative: cum,
+      isNow: k === now,
+      orgs: [...new Set(list.map((a) => a.org))],
+    });
   }
   return out;
 }

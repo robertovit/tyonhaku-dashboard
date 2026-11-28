@@ -319,6 +319,7 @@ export default function App() {
                     freshShield={celebration?.shield?.id}
                     freshPost={celebration?.post?.id}
                     weeks={earnedWeeks}
+                    today={today}
                     shield={shield}
                     post={post}
                     onShield={equipShield}

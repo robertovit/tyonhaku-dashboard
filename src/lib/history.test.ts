@@ -53,8 +53,8 @@ describe("interview, then rejection", () => {
   });
   it("dates the interview badge to the interview week", () => {
     const w = badgeWeeks([no], 5, today);
-    expect(w.first).toBe(45); // 3.11.
-    expect(w.interview).toBe(46); // 15.11., not the week the application was sent
+    expect(w.first).toBe("2026-11-02"); // the Monday of 3.11. (week 45)
+    expect(w.interview).toBe("2026-11-09"); // 15.11. (week 46), not the week the application was sent
   });
   it("reads the application as it was on a past day", () => {
     expect(asOf(no, "2026-11-16")).toMatchObject({ status: "int", events: [{ status: "int" }] });

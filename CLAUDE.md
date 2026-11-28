@@ -36,7 +36,9 @@ Stack: React 19 + TypeScript + Vite, charts with visx (D3 scales/shapes), Vitest
     can be worked on.
   - `src/demo/demo.ts` (`--mode demo`): the fixture moved to the current week (`src/demo/seed.ts`) plus a few
     items around today, kept in the visitor's localStorage (`tyonhaku-demo-v2`). Five fixture rejections are still
-    waiting in the demo, so it starts at 9 rejections and one quick rejection opens the third shield. `Backend.demo` makes the UI show the demo banner
+    waiting in the demo, so it starts at 9 rejections and one quick rejection opens the third shield. Three fixture
+    CV versions are left out, so Räätälöijä shows 3 / 5; the first saved place has a CV version, so marking it applied
+    takes it to 4 / 5. `Backend.demo` makes the UI show the demo banner
     with "Palauta esimerkkidata"; there is no backup import or sign-out.
     Both are dynamic imports behind build-time constants, so the production build contains neither.
     Components never touch `fetch` directly.
@@ -86,7 +88,9 @@ The open view is in the URL hash (`#varusteet`; `useView` pushes history entries
 Tänään: character with the worn shield and three meter lines, "Tallennetut paikat" (`deadlineLabel`,
 `lib/labels.ts`) and "Seurattavat haut" (three first; a row opens "Muistuta 2 viikon päästä", "Kirjaa hylkäys",
 "Muokkaa"). Varusteet (`Gear.tsx`): two gear slots that work the same way (`Armory`: preview with "Ota käyttöön" beside it,
-radio cards), the shields and the post series, then other badges and "Aiemmat merkit". Tilastot has the weekly chart; Hakuloki (`LogTable.tsx`) has the CSV download and shows
+radio cards), the shields and the post series, then other badges (`BadgesPanel`: locked tiles show "3/5", the
+picked badge its condition, progress meter and next step; it opens on a badge just earned, else the first locked
+one with progress) and "Aiemmat merkit". Tilastot has the weekly chart; Hakuloki (`LogTable.tsx`) has the CSV download and shows
 cards on a phone and a table on wider screens (same rows, order and filter).
 Short dialogs (`QuickDialogs.tsx`): "Päivitä tila" (new status + the day the news came, saved through
 `recordStatus` like the edit dialog) and "Merkitse haetuksi" (send date only). App opens them as promises, so the
@@ -119,12 +123,19 @@ follow-ups) only sees sent applications. Open applications (`type: "open"`) are 
 ## Game rules
 
 XP, levels, streaks and badges are derived from the applications in `game.ts` – nothing extra is stored.
-`xpParts`/`xpForApp` give one application's XP (0 for `todo`); `badgeWeeks` replays the applications to date each badge
+Weeks are Monday–Sunday ISO weeks keyed by their Monday (`weekKey` in `dates.ts`, so 31.12.2026 and 2.1.2027 share
+week 53 of 2026); `weekLabel` shows "vko 53", with the year when it is not this year's. A badge is earned when its
+`count` reaches `required`, and `badgeProgress` gives the same count to the UI (`unit`/`next` only where a running
+count helps). Badges give no XP. Oma tahti (`pace`) counts distinct weeks with a sent application
+(`GameState.activeWeeks`, from the send dates only, any goal, pauses allowed), 4 to earn. Räätälöijä counts sent
+applications with a CV version recorded (the same as the +5 XP part).
+`xpParts`/`xpForApp` give one application's XP (0 for `todo`); `badgeWeeks` replays the applications to date each badge (the week's Monday)
 (a dated stage from its own day). Outcome XP, badges and the funnel count the stages reached (`hadInterview`, …),
 so a rejection after an interview keeps the interview (10 → 60 → 63); an offer counts as an interview too. The
 outcome counts and the log show the current status. `statusGain` is the forecast in the dialog and the Today panel.
 Rewards effort, not outcomes (a handled rejection also gives XP). Tests in `src/lib/logic.test.ts` pin the
-known values of the fixture (380 XP, level 3, 10/14 badges, 3 follow-ups); update them deliberately when rules change.
+known values of the fixture (380 XP, level 3, 11 badges, 3 follow-ups); `badges.test.ts` covers weeks, the turn
+of the year and Oma tahti; update them deliberately when rules change.
 
 Shields (`lib/shields.ts`): 1, 5 and 10 rejections (`GameState.no`, each application once, a rejection after an
 interview too) open three shields that give no XP. There is no separate "closed without an answer" status yet, so a
@@ -138,10 +149,13 @@ Postileimasin, Puolisataa-postilaatikko, Postikärry and Tavarafillari. Cosmetic
 items at once; a save that crosses a milestone shows the unlock toast with "Ota käyttöön" (`Celebration.post`,
 the cart's own title in `unlockedTitle`). The
 Varusteet view shows the shields, the post series (the application milestones `APP_MILESTONES` with
-`milestoneProgress`), the other effort badges (`EFFORT_BADGES`; the shields replace "Sinnikäs") and earned
-outcome badges under "Aiemmat merkit" (`ARCHIVED_BADGES`); all stay in `GameState.badges`. `celebrationWatch`
+`milestoneProgress`), the other effort badges (`EFFORT_BADGES`: Räätälöijä, Oma tahti, Tavoite täynnä, Kolmen viikon putki, Laaja
+verkko; the shields replace "Sinnikäs") and earned badges under "Aiemmat merkit" (`ARCHIVED_BADGES`: Kymmenen
+yhdessä päivässä, Isoja vesiä and the outcome badges; still earnable, shown only once earned, never announced); all
+stay in `GameState.badges`. `celebrationWatch`
 compares only confirmed states (no write pending) after `arm()`, so a failed save and the first load celebrate
-nothing; a rejection never gets confetti, and a newly opened shield comes with "Ota käyttöön" in the toast.
+nothing; a badge opened by a save with no XP (a send date corrected into another week) is the title
+("Uusi merkki: Oma tahti"); a rejection never gets confetti, and a newly opened shield comes with "Ota käyttöön" in the toast.
 
 ## Later: Claude fill in the web app
 
